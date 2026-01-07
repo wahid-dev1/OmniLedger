@@ -5,8 +5,6 @@
 
 import { Sequelize, Options } from 'sequelize';
 import type { DatabaseConfig } from '../shared/types';
-// Use better-sqlite3 instead of sqlite3 for better Electron compatibility
-import Database from 'better-sqlite3';
 
 export class SequelizeConfig {
   /**
@@ -77,11 +75,10 @@ export class SequelizeConfig {
         // 2. Busy timeout - retries when database is locked (5 seconds)
         // 3. Reduced pool size - SQLite works better with fewer connections
         // Note: PRAGMA settings are configured via configureSQLite() method after connection
-        // Use better-sqlite3 for better Electron compatibility (avoids native module architecture issues)
+        // Note: sqlite3 native module must be rebuilt for Electron's architecture using electron-rebuild
         return new Sequelize({
           dialect: 'sqlite',
           storage: dbPath,
-          dialectModule: Database as any, // Use better-sqlite3 instead of sqlite3
           logging: sequelizeOptions.logging,
           define: sequelizeOptions.define,
           pool: {
