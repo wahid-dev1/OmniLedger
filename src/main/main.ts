@@ -2,6 +2,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import fs from "fs";
+import { pathToFileURL } from "url";
 import { Op, Sequelize } from "sequelize";
 import { CompanyService } from "../services/company.service";
 import { DatabaseService } from "../services/database.service";
@@ -62,8 +63,7 @@ function createWindow() {
     });
   } else {
     // In production, the renderer files are in dist/ directory
-    // __dirname points to dist-electron/main/ in production
-    // Navigate up to the app root, then into dist/
+    // Use loadURL with file:// protocol to ensure proper base path for relative assets
     const htmlPath = path.join(__dirname, "..", "..", "dist", "index.html");
     console.log("Production mode - Loading HTML from:", htmlPath);
     console.log("__dirname:", __dirname);
@@ -71,17 +71,30 @@ function createWindow() {
     
     // Verify the file exists before loading
     if (fs.existsSync(htmlPath)) {
-      console.log("HTML file found, loading...");
-      mainWindow.loadFile(htmlPath).catch((err) => {
-        console.error("Failed to load HTML file:", err);
+      console.log("HTML file found, loading with file:// URL...");
+      // Use loadURL with file:// protocol to ensure relative asset paths resolve correctly
+      // pathToFileURL properly formats the path for cross-platform compatibility
+      const fileUrl = pathToFileURL(htmlPath).href;
+      console.log("File URL:", fileUrl);
+      mainWindow.loadURL(fileUrl).catch((err) => {
+        console.error("Failed to load URL:", err);
+        // Fallback to loadFile if loadURL fails
+        mainWindow.loadFile(htmlPath).catch((loadFileErr) => {
+          console.error("Failed to load file:", loadFileErr);
+        });
       });
     } else {
       // Try alternative path - sometimes app.getAppPath() works better when packaged
       const altPath = path.join(app.getAppPath(), "dist", "index.html");
       console.log("HTML not found at primary path, trying:", altPath);
       if (fs.existsSync(altPath)) {
-        mainWindow.loadFile(altPath).catch((err) => {
-          console.error("Failed to load HTML file from alternative path:", err);
+        const altFileUrl = pathToFileURL(altPath).href;
+        console.log("Alternative file URL:", altFileUrl);
+        mainWindow.loadURL(altFileUrl).catch((err) => {
+          console.error("Failed to load URL from alternative path:", err);
+          mainWindow.loadFile(altPath).catch((loadFileErr) => {
+            console.error("Failed to load file:", loadFileErr);
+          });
         });
       } else {
         console.error("ERROR: HTML file not found at either path!");

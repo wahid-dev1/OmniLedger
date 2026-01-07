@@ -1,11 +1,47 @@
 {
   "name": "omniledger",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Desktop Inventory & Accounting System",
   "main": "dist-electron/main/main.js",
   "author": "wahid-dev1",
-  "license": "MIT",
-  "private": true,
+  "homepage": "https://github.com/wahid-dev1/omniledger",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wahid-dev1/omniledger.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wahid-dev1/omniledger/issues"
+  },
+  "keywords": [
+    "inventory",
+    "accounting",
+    "desktop",
+    "electron",
+    "react",
+    "typescript",
+    "sequelize"
+  ],
+  "contributors": [
+    {
+      "name": "Wahid",
+      "email": "wahid@gmail.com",
+      "url": "https://github.com/wahid-dev1"
+    }
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "packageManager": "npm@8.0.0",
   "scripts": {
     "predev": "npm run build:electron",
     "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
