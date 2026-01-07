@@ -61,7 +61,15 @@ function createWindow() {
       console.error("Failed to load URL:", err);
     });
   } else {
-    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+    // In production, the renderer files are in dist/ directory
+    // Use app.getAppPath() to get the app root, then navigate to dist/index.html
+    // This works correctly both when unpacked and when packaged in asar
+    const appPath = app.getAppPath();
+    const htmlPath = path.join(appPath, "dist", "index.html");
+    console.log("Loading HTML from:", htmlPath);
+    mainWindow.loadFile(htmlPath).catch((err) => {
+      console.error("Failed to load HTML file:", err);
+    });
   }
 
   // Handle errors
