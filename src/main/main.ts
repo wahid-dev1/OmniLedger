@@ -62,13 +62,48 @@ function createWindow() {
     });
   } else {
     // In production, the renderer files are in dist/ directory
-    // Use app.getAppPath() to get the app root, then navigate to dist/index.html
-    // This works correctly both when unpacked and when packaged in asar
-    const appPath = app.getAppPath();
-    const htmlPath = path.join(appPath, "dist", "index.html");
-    console.log("Loading HTML from:", htmlPath);
-    mainWindow.loadFile(htmlPath).catch((err) => {
-      console.error("Failed to load HTML file:", err);
+    // __dirname points to dist-electron/main/ in production
+    // Navigate up to the app root, then into dist/
+    const htmlPath = path.join(__dirname, "..", "..", "dist", "index.html");
+    console.log("Production mode - Loading HTML from:", htmlPath);
+    console.log("__dirname:", __dirname);
+    console.log("app.getAppPath():", app.getAppPath());
+    
+    // Verify the file exists before loading
+    if (fs.existsSync(htmlPath)) {
+      console.log("HTML file found, loading...");
+      mainWindow.loadFile(htmlPath).catch((err) => {
+        console.error("Failed to load HTML file:", err);
+      });
+    } else {
+      // Try alternative path - sometimes app.getAppPath() works better when packaged
+      const altPath = path.join(app.getAppPath(), "dist", "index.html");
+      console.log("HTML not found at primary path, trying:", altPath);
+      if (fs.existsSync(altPath)) {
+        mainWindow.loadFile(altPath).catch((err) => {
+          console.error("Failed to load HTML file from alternative path:", err);
+        });
+      } else {
+        console.error("ERROR: HTML file not found at either path!");
+        console.error("Primary path:", htmlPath);
+        console.error("Alternative path:", altPath);
+      }
+    }
+    
+    // Enhanced error logging for debugging
+    mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      console.error("Failed to load:", {
+        errorCode,
+        errorDescription,
+        url: validatedURL,
+        isMainFrame
+      });
+    });
+    
+    // Log console messages from renderer
+    mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+      const levelName = level === 0 ? "DEBUG" : level === 1 ? "INFO" : level === 2 ? "WARN" : "ERROR";
+      console.log(`[Renderer ${levelName}]`, message, sourceId ? `(${sourceId}:${line})` : "");
     });
   }
 
