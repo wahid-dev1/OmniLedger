@@ -609,9 +609,20 @@ export function DatabaseConfiguration() {
         <div className="max-w-7xl mx-auto space-y-3">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold">Database Configuration</h1>
-              <p className="text-xs text-muted-foreground">Manage connection profiles</p>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/")}
+                className="h-8"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                Back to Companies
+              </Button>
+              <div>
+                <h1 className="text-xl font-bold">Database Configuration</h1>
+                <p className="text-xs text-muted-foreground">Manage connection profiles</p>
+              </div>
             </div>
             <Button
               onClick={() => setShowForm(true)}
@@ -1212,7 +1223,25 @@ export function DatabaseConfiguration() {
   // Show configuration form
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto space-y-3">
+        {/* Header with Back Button */}
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (isEditing) {
+                handleBackToExisting();
+              } else {
+                navigate("/");
+              }
+            }}
+            className="h-8"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            {isEditing ? "Back" : "Back to Companies"}
+          </Button>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle>
