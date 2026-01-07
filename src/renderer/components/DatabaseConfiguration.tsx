@@ -604,8 +604,8 @@ export function DatabaseConfiguration() {
     const activeProfile = activeProfileId ? getProfileById(activeProfileId) : null;
     
     return (
-      <div className="min-h-screen bg-background p-3 md:p-4">
-        <div className="max-w-5xl mx-auto space-y-3">
+      <div className="min-h-screen bg-background p-4 md:p-6">
+        <div className="max-w-7xl mx-auto space-y-3">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -623,7 +623,7 @@ export function DatabaseConfiguration() {
 
           {/* Connection Profiles - Main Focus */}
           <Card className="border">
-            <CardHeader className="pb-2 pt-3 px-4">
+            <CardHeader className="pb-2 pt-2 px-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Database className="h-4 w-4 text-primary" />
@@ -636,7 +636,7 @@ export function DatabaseConfiguration() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="px-4 pb-4 space-y-2">
+            <CardContent className="px-3 pb-3 space-y-2">
               {profiles.length > 0 ? (
                 <div className="space-y-2">
                   {profiles.map((profile) => {
@@ -796,7 +796,7 @@ export function DatabaseConfiguration() {
               <CardContent className="space-y-5">
                 {/* Connection Status */}
                 {connectionStatus !== 'idle' && (
-                  <div className={`flex items-center gap-3 p-4 rounded-lg border-2 ${
+                  <div className={`flex items-center gap-2 p-2 rounded border text-xs ${
                     connectionStatus === 'connected' 
                       ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
                       : connectionStatus === 'disconnected'
@@ -805,29 +805,20 @@ export function DatabaseConfiguration() {
                   }`}>
                     {connectionStatus === 'testing' && (
                       <>
-                        <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                        <div>
-                          <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Testing connection...</span>
-                          <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">Please wait while we verify your connection</p>
-                        </div>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
+                        <span className="text-blue-900 dark:text-blue-100">Testing connection...</span>
                       </>
                     )}
                     {connectionStatus === 'connected' && (
                       <>
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        <div>
-                          <span className="text-sm font-medium text-green-900 dark:text-green-100">Connection Successful</span>
-                          <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">Your database is ready to use</p>
-                        </div>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                        <span className="text-green-900 dark:text-green-100">Connected</span>
                       </>
                     )}
                     {connectionStatus === 'disconnected' && (
                       <>
-                        <XCircle className="h-5 w-5 text-red-600" />
-                        <div>
-                          <span className="text-sm font-medium text-red-900 dark:text-red-100">Connection Failed</span>
-                          <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">Unable to connect to the database</p>
-                        </div>
+                        <XCircle className="h-3.5 w-3.5 text-red-600" />
+                        <span className="text-red-900 dark:text-red-100">Connection Failed</span>
                       </>
                     )}
                   </div>
@@ -835,78 +826,63 @@ export function DatabaseConfiguration() {
 
                 {/* Migration Status */}
                 {migrationStatus && databaseConfig.type !== 'sqlite' && (
-                  <div className="p-4 rounded-lg border bg-muted/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {checkingMigration ? (
-                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                        ) : migrationStatus.isUpToDate ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <AlertCircle className="h-5 w-5 text-yellow-600" />
-                        )}
-                        <div>
-                          <span className="text-sm font-medium">
-                            Migration Status: {migrationStatus.isUpToDate ? 'Up to date' : 'Pending'}
-                          </span>
-                          {migrationStatus.lastMigration && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Last migration: {migrationStatus.lastMigration.toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 p-2 rounded border bg-muted/50 text-xs">
+                    {checkingMigration ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : migrationStatus.isUpToDate ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-3.5 w-3.5 text-yellow-600" />
+                    )}
+                    <span>
+                      Migration: {migrationStatus.isUpToDate ? 'Up to date' : 'Pending'}
+                    </span>
                   </div>
                 )}
 
                 {/* Configuration Details */}
-                <div className="p-5 bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg border">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Database className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold">Current Configuration</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground font-medium min-w-[100px]">Type:</span>
-                      <Badge variant="outline" className="font-mono">
+                <div className="p-3 bg-muted/30 rounded border">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground min-w-[60px]">Type:</span>
+                      <Badge variant="outline" className="font-mono text-xs px-1 py-0">
                         {databaseConfig.type}
                       </Badge>
                     </div>
                     {databaseConfig.type === "sqlite" ? (
-                      <div className="flex items-start gap-2 md:col-span-2">
-                        <span className="text-muted-foreground font-medium min-w-[100px] pt-0.5">Path:</span>
-                        <span className="font-mono text-xs text-foreground break-all bg-background px-2 py-1 rounded border">
+                      <div className="flex items-center gap-1.5 col-span-2">
+                        <span className="text-muted-foreground min-w-[60px]">Path:</span>
+                        <span className="font-mono text-xs text-foreground truncate bg-background px-1.5 py-0.5 rounded border">
                           {databaseConfig.connectionString}
                         </span>
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground font-medium min-w-[100px]">Host:</span>
-                          <span className="font-mono text-foreground">{databaseConfig.host}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground min-w-[60px]">Host:</span>
+                          <span className="font-mono text-xs text-foreground">{databaseConfig.host}</span>
                         </div>
                         {databaseConfig.port && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground font-medium min-w-[100px]">Port:</span>
-                            <span className="font-mono text-foreground">{databaseConfig.port}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground min-w-[60px]">Port:</span>
+                            <span className="font-mono text-xs text-foreground">{databaseConfig.port}</span>
                           </div>
                         )}
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground font-medium min-w-[100px]">Database:</span>
-                          <span className="font-mono text-foreground">{databaseConfig.database}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground min-w-[60px]">DB:</span>
+                          <span className="font-mono text-xs text-foreground truncate">{databaseConfig.database}</span>
                         </div>
                         {databaseConfig.username && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground font-medium min-w-[100px]">Username:</span>
-                            <span className="text-foreground">{databaseConfig.username}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground min-w-[60px]">User:</span>
+                            <span className="text-xs text-foreground truncate">{databaseConfig.username}</span>
                           </div>
                         )}
                         {databaseConfig.ssl && (
-                          <div className="flex items-center gap-2 md:col-span-2">
-                            <Shield className="h-4 w-4 text-green-600" />
-                            <span className="text-muted-foreground font-medium">SSL:</span>
-                            <Badge variant="success" className="text-xs">
+                          <div className="flex items-center gap-1.5 col-span-2">
+                            <Shield className="h-3 w-3 text-green-600" />
+                            <span className="text-muted-foreground text-xs">SSL:</span>
+                            <Badge variant="success" className="text-xs px-1 py-0">
                               {databaseConfig.sslMode || 'require'}
                             </Badge>
                           </div>
@@ -918,11 +894,10 @@ export function DatabaseConfiguration() {
 
                 {/* Test Progress */}
                 {testProgress.length > 0 && (
-                  <div className="space-y-2 p-4 rounded-lg bg-muted/50 border">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Connection Test Progress</p>
+                  <div className="space-y-1 p-2 rounded border bg-muted/50 text-xs">
                     {testProgress.map((step, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm text-foreground">
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      <div key={index} className="flex items-center gap-1.5">
+                        <div className="h-1 w-1 rounded-full bg-primary" />
                         <span>{step}</span>
                       </div>
                     ))}
@@ -930,23 +905,21 @@ export function DatabaseConfiguration() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <Button 
                       onClick={() => handleTestConnection(databaseConfig)} 
                       variant="outline"
                       disabled={testingConnection || syncingTables}
-                      className="shadow-sm"
+                      size="sm"
+                      className="text-xs h-8"
                     >
                       {testingConnection ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Testing...
-                        </>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Test Connection
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          Test
                         </>
                       )}
                     </Button>
@@ -954,46 +927,43 @@ export function DatabaseConfiguration() {
                       onClick={() => handleSyncTables(databaseConfig)}
                       variant="outline"
                       disabled={syncingTables || testingConnection}
-                      className="shadow-sm"
+                      size="sm"
+                      className="text-xs h-8"
                     >
                       {syncingTables ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Syncing...
-                        </>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <>
-                          <Database className="h-4 w-4 mr-2" />
-                          Sync Tables
+                          <Database className="h-3.5 w-3.5 mr-1" />
+                          Sync
                         </>
                       )}
                     </Button>
                     <Button 
                       onClick={handleEditExisting}
                       variant="outline"
-                      className="shadow-sm"
+                      size="sm"
+                      className="text-xs h-8"
                     >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Profile
+                      <Edit className="h-3.5 w-3.5 mr-1" />
+                      Edit
                     </Button>
                   </div>
                   
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t">
+                  <div className="flex gap-2 pt-1 border-t">
                     <Button 
                       onClick={handleUseExisting} 
-                      className="flex-1 shadow-sm"
+                      className="flex-1"
                       disabled={isLoading || testingConnection || syncingTables}
-                      size="lg"
+                      size="sm"
+                      className="h-8 text-xs"
                     >
                       {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Connecting...
-                        </>
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Use This Configuration
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                          Use This
                         </>
                       )}
                     </Button>
@@ -1002,19 +972,20 @@ export function DatabaseConfiguration() {
                       variant="outline"
                       className="flex-1"
                       disabled={isLoading || testingConnection || syncingTables}
-                      size="lg"
+                      size="sm"
+                      className="h-8 text-xs"
                     >
-                      Configure New Database
+                      New DB
                     </Button>
                   </div>
                   
                   <Button
                     onClick={() => navigate("/")}
                     variant="ghost"
-                    className="w-full"
+                    className="w-full h-8 text-xs"
                     disabled={isLoading || testingConnection || syncingTables}
                   >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
                     Back to Companies
                   </Button>
                 </div>
@@ -1024,67 +995,56 @@ export function DatabaseConfiguration() {
 
           {/* No Active Profile - Show Default Config */}
           {!activeProfile && databaseConfig && (
-            <Card className="shadow-lg border-2">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <Database className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">Current Configuration</CardTitle>
-                    <CardDescription className="mt-1">
-                      Database configuration details (not saved as profile)
-                    </CardDescription>
-                  </div>
+            <Card className="border">
+              <CardHeader className="pb-2 pt-2 px-3">
+                <div className="flex items-center gap-2">
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base">Current Configuration</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="p-5 bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg border">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Database className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold">Configuration Details</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground font-medium min-w-[100px]">Type:</span>
-                      <Badge variant="outline" className="font-mono">
+              <CardContent className="px-3 pb-3 space-y-3">
+                <div className="p-3 bg-muted/30 rounded border">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground min-w-[60px]">Type:</span>
+                      <Badge variant="outline" className="font-mono text-xs px-1 py-0">
                         {databaseConfig.type}
                       </Badge>
                     </div>
                     {databaseConfig.type === "sqlite" ? (
-                      <div className="flex items-start gap-2 md:col-span-2">
-                        <span className="text-muted-foreground font-medium min-w-[100px] pt-0.5">Path:</span>
-                        <span className="font-mono text-xs text-foreground break-all bg-background px-2 py-1 rounded border">
+                      <div className="flex items-center gap-1.5 col-span-2">
+                        <span className="text-muted-foreground min-w-[60px]">Path:</span>
+                        <span className="font-mono text-xs text-foreground truncate bg-background px-1.5 py-0.5 rounded border">
                           {databaseConfig.connectionString}
                         </span>
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground font-medium min-w-[100px]">Host:</span>
-                          <span className="font-mono text-foreground">{databaseConfig.host}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground min-w-[60px]">Host:</span>
+                          <span className="font-mono text-xs text-foreground">{databaseConfig.host}</span>
                         </div>
                         {databaseConfig.port && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground font-medium min-w-[100px]">Port:</span>
-                            <span className="font-mono text-foreground">{databaseConfig.port}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground min-w-[60px]">Port:</span>
+                            <span className="font-mono text-xs text-foreground">{databaseConfig.port}</span>
                           </div>
                         )}
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground font-medium min-w-[100px]">Database:</span>
-                          <span className="font-mono text-foreground">{databaseConfig.database}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-muted-foreground min-w-[60px]">DB:</span>
+                          <span className="font-mono text-xs text-foreground truncate">{databaseConfig.database}</span>
                         </div>
                         {databaseConfig.username && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground font-medium min-w-[100px]">Username:</span>
-                            <span className="text-foreground">{databaseConfig.username}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground min-w-[60px]">User:</span>
+                            <span className="text-xs text-foreground truncate">{databaseConfig.username}</span>
                           </div>
                         )}
                         {databaseConfig.ssl && (
-                          <div className="flex items-center gap-2 md:col-span-2">
-                            <Shield className="h-4 w-4 text-green-600" />
-                            <span className="text-muted-foreground font-medium">SSL:</span>
-                            <Badge variant="success" className="text-xs">
+                          <div className="flex items-center gap-1.5 col-span-2">
+                            <Shield className="h-3 w-3 text-green-600" />
+                            <span className="text-muted-foreground text-xs">SSL:</span>
+                            <Badge variant="success" className="text-xs px-1 py-0">
                               {databaseConfig.sslMode || 'require'}
                             </Badge>
                           </div>
@@ -1094,23 +1054,21 @@ export function DatabaseConfiguration() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <Button 
                       onClick={() => handleTestConnection(databaseConfig)} 
                       variant="outline"
                       disabled={testingConnection || syncingTables}
-                      className="shadow-sm"
+                      size="sm"
+                      className="text-xs h-8"
                     >
                       {testingConnection ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Testing...
-                        </>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Test Connection
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          Test
                         </>
                       )}
                     </Button>
@@ -1118,45 +1076,42 @@ export function DatabaseConfiguration() {
                       onClick={() => handleSyncTables(databaseConfig)}
                       variant="outline"
                       disabled={syncingTables || testingConnection}
-                      className="shadow-sm"
+                      size="sm"
+                      className="text-xs h-8"
                     >
                       {syncingTables ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Syncing...
-                        </>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <>
-                          <Database className="h-4 w-4 mr-2" />
-                          Sync Tables
+                          <Database className="h-3.5 w-3.5 mr-1" />
+                          Sync
                         </>
                       )}
                     </Button>
                     <Button 
                       onClick={handleEditExisting}
                       variant="outline"
-                      className="shadow-sm"
+                      size="sm"
+                      className="text-xs h-8"
                     >
-                      <Edit className="h-4 w-4 mr-2" />
+                      <Edit className="h-3.5 w-3.5 mr-1" />
                       Edit
                     </Button>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t">
+                  <div className="flex gap-2 pt-1 border-t">
                     <Button 
                       onClick={handleUseExisting} 
-                      className="flex-1 shadow-sm"
+                      className="flex-1"
                       disabled={isLoading || testingConnection || syncingTables}
-                      size="lg"
+                      size="sm"
+                      className="h-8 text-xs"
                     >
                       {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Connecting...
-                        </>
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Use Existing Configuration
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                          Use This
                         </>
                       )}
                     </Button>
@@ -1165,18 +1120,19 @@ export function DatabaseConfiguration() {
                       variant="outline"
                       className="flex-1"
                       disabled={isLoading || testingConnection || syncingTables}
-                      size="lg"
+                      size="sm"
+                      className="h-8 text-xs"
                     >
-                      Configure New Database
+                      New DB
                     </Button>
                   </div>
                   <Button
                     onClick={() => navigate("/")}
                     variant="ghost"
-                    className="w-full"
+                    className="w-full h-8 text-xs"
                     disabled={isLoading || testingConnection || syncingTables}
                   >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
                     Back to Companies
                   </Button>
                 </div>
@@ -1190,8 +1146,8 @@ export function DatabaseConfiguration() {
 
   // Show configuration form
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-background p-4 md:p-6">
+      <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader>
             <CardTitle>
