@@ -5,7 +5,10 @@ import fs from "fs";
 import { Op, Sequelize } from "sequelize";
 import { CompanyService } from "../services/company.service";
 import { DatabaseService } from "../services/database.service";
-import { DatabaseMigrationService } from "../services/database-migration.service";
+import {
+  CURRENT_SCHEMA_VERSION,
+  DatabaseMigrationService,
+} from "../services/database-migration.service";
 import { SeedService } from "../services/seed.service";
 import type { DatabaseConfig } from "../shared/types";
 import { SequelizeConfig } from "../database/sequelize.config";
@@ -3677,7 +3680,7 @@ ipcMain.handle("check-migration-needed", async (_event, config: DatabaseConfig) 
   } catch (error) {
     return {
       needed: true, // Default to true if we can't check (safer)
-      requiredVersion: DatabaseMigrationService.CURRENT_SCHEMA_VERSION,
+      requiredVersion: CURRENT_SCHEMA_VERSION,
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }

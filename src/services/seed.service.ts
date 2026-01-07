@@ -142,7 +142,7 @@ export class SeedService {
 
     // Create Batches for Products
     const now = new Date();
-    const batches = [];
+    const batches: Array<InstanceType<typeof Batch>> = [];
 
     for (let i = 0; i < createdProducts.length; i++) {
       const product = createdProducts[i];
@@ -312,8 +312,8 @@ export class SeedService {
       const itemCount = Math.floor(Math.random() * 3) + 1; // 1-3 items
       const selectedBatches: Array<{ id: string; productId: string }> = [];
       for (let j = 0; j < itemCount; j++) {
-        const batch = batches[Math.floor(Math.random() * batches.length)];
-        const batchData = batch.toJSON();
+        const batchModel = batches[Math.floor(Math.random() * batches.length)];
+        const batchData = batchModel.toJSON();
         if (!selectedBatches.find((b: { id: string }) => b.id === batchData.id)) {
           selectedBatches.push({ id: batchData.id, productId: batchData.productId });
         }
@@ -328,23 +328,28 @@ export class SeedService {
         totalPrice: number;
       }> = [];
 
-      for (const batch of selectedBatches) {
+      for (const selectedBatch of selectedBatches) {
         const product = createdProducts.find((p) => {
           const pData = p.toJSON();
-          return pData.id === batch.productId;
+          return pData.id === selectedBatch.productId;
         });
         if (!product) continue;
 
         const productData = product.toJSON();
         const quantity = Math.floor(Math.random() * 5) + 1; // 1-5 units
         // Use batch purchase price with markup for sale price (seed data)
-        const batchData = batch.toJSON();
+        // selectedBatch is a lightweight {id, productId} object, so we need the full Batch model instance for pricing fields.
+        const batchInstance =
+          batches.find((b) => b.id === selectedBatch.id) ||
+          (await Batch.findByPk(selectedBatch.id));
+        if (!batchInstance) continue;
+        const batchData = batchInstance.toJSON();
         const unitPrice = (batchData.purchasePrice || 0) * 1.4; // 40% markup
         const itemTotal = unitPrice * quantity;
 
         saleItems.push({
           productId: productData.id,
-          batchId: batch.id,
+          batchId: selectedBatch.id,
           quantity: quantity,
           unitPrice: unitPrice,
           totalPrice: itemTotal,
@@ -353,12 +358,9 @@ export class SeedService {
         totalAmount += itemTotal;
 
         // Update batch available quantity
-        const batchInstance = await Batch.findByPk(batch.id);
-        if (batchInstance) {
-          await batchInstance.update({
-            availableQuantity: (batchInstance.availableQuantity || 0) - quantity,
-          });
-        }
+        await batchInstance.update({
+          availableQuantity: (batchInstance.availableQuantity || 0) - quantity,
+        });
       }
 
       const customerData = customer.toJSON();

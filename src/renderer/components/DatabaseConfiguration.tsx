@@ -69,6 +69,7 @@ export function DatabaseConfiguration() {
   const [profileNameInput, setProfileNameInput] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showActiveProfileModal, setShowActiveProfileModal] = useState(false);
 
   // Load connection profiles
   useEffect(() => {
@@ -636,136 +637,173 @@ export function DatabaseConfiguration() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="px-3 pb-3 space-y-2">
+            <CardContent className="p-0">
               {profiles.length > 0 ? (
-                <div className="space-y-2">
-                  {profiles.map((profile) => {
-                    const isActive = activeProfileId === profile.id;
-                    return (
-                      <div
-                        key={profile.id}
-                        className={`group relative p-3 rounded-lg border transition-all ${
-                          isActive
-                            ? 'bg-primary/5 border-primary'
-                            : 'bg-card border-border hover:border-primary/30'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Server className={`h-3.5 w-3.5 ${
-                                isActive ? 'text-primary' : 'text-muted-foreground'
-                              }`} />
-                              <h3 className="font-semibold text-sm text-foreground">
-                                {profile.name}
-                              </h3>
-                              {isActive && (
-                                <Badge variant="default" className="text-xs px-1.5 py-0">
-                                  Active
-                                </Badge>
-                              )}
-                              {profile.isDefault && (
-                                <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                                  Default
-                                </Badge>
-                              )}
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left p-3 text-xs font-medium">Status</th>
+                        <th className="text-left p-3 text-xs font-medium">Name</th>
+                        <th className="text-left p-3 text-xs font-medium">Type</th>
+                        <th className="text-left p-3 text-xs font-medium">Host</th>
+                        <th className="text-left p-3 text-xs font-medium">Port</th>
+                        <th className="text-left p-3 text-xs font-medium">Database</th>
+                        <th className="text-left p-3 text-xs font-medium">Username</th>
+                        <th className="text-left p-3 text-xs font-medium">Path</th>
+                        <th className="text-left p-3 text-xs font-medium">SSL</th>
+                        <th className="text-left p-3 text-xs font-medium">Last Used</th>
+                        <th className="text-center p-3 text-xs font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profiles.map((profile) => {
+                        const isActive = activeProfileId === profile.id;
+                        return (
+                          <tr
+                            key={profile.id}
+                            className={`border-b transition-colors cursor-pointer ${
+                              isActive
+                                ? 'bg-primary/5 hover:bg-primary/10'
+                                : 'hover:bg-muted/50'
+                            }`}
+                            onClick={() => {
+                              if (isActive) {
+                                setShowActiveProfileModal(true);
+                              }
+                            }}
+                          >
+                            <td className="p-3">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-muted-foreground min-w-[50px]">Type:</span>
-                                <Badge variant="outline" className="font-mono text-xs px-1 py-0">
-                                  {profile.config.type}
-                                </Badge>
+                                {isActive && (
+                                  <Badge variant="default" className="text-xs px-1.5 py-0">
+                                    Active
+                                  </Badge>
+                                )}
+                                {profile.isDefault && !isActive && (
+                                  <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                    Default
+                                  </Badge>
+                                )}
+                                {!isActive && !profile.isDefault && (
+                                  <span className="text-muted-foreground text-xs">-</span>
+                                )}
                               </div>
-                              {profile.config.host && (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-muted-foreground min-w-[50px]">Host:</span>
-                                  <span className="font-mono text-xs text-foreground truncate">{profile.config.host}</span>
-                                </div>
-                              )}
-                              {profile.config.port && (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-muted-foreground min-w-[50px]">Port:</span>
-                                  <span className="font-mono text-xs text-foreground">{profile.config.port}</span>
-                                </div>
-                              )}
-                              {profile.config.database && (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-muted-foreground min-w-[50px]">DB:</span>
-                                  <span className="font-mono text-xs text-foreground truncate">{profile.config.database}</span>
-                                </div>
-                              )}
-                              {profile.config.connectionString && (
-                                <div className="flex items-center gap-1.5 col-span-2">
-                                  <span className="text-muted-foreground min-w-[50px]">Path:</span>
-                                  <span className="font-mono text-xs text-foreground truncate">{profile.config.connectionString}</span>
-                                </div>
-                              )}
-                              {profile.config.username && (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-muted-foreground min-w-[50px]">User:</span>
-                                  <span className="text-xs text-foreground truncate">{profile.config.username}</span>
-                                </div>
-                              )}
-                              {profile.config.ssl && (
-                                <div className="flex items-center gap-1.5">
+                            </td>
+                            <td className="p-3">
+                              <div className="flex items-center gap-1.5">
+                                <Server className={`h-3.5 w-3.5 ${
+                                  isActive ? 'text-primary' : 'text-muted-foreground'
+                                }`} />
+                                <span className="font-medium text-sm">{profile.name}</span>
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
+                                {profile.config.type}
+                              </Badge>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-mono text-xs text-foreground">
+                                {profile.config.host || '-'}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-mono text-xs text-foreground">
+                                {profile.config.port || '-'}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-mono text-xs text-foreground truncate max-w-[120px] block">
+                                {profile.config.database || '-'}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="text-xs text-foreground">
+                                {profile.config.username || '-'}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-mono text-xs text-foreground truncate max-w-[200px] block">
+                                {profile.config.connectionString || '-'}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              {profile.config.ssl ? (
+                                <div className="flex items-center gap-1">
                                   <Shield className="h-3 w-3 text-green-600" />
-                                  <span className="text-muted-foreground text-xs">SSL:</span>
                                   <Badge variant="success" className="text-xs px-1 py-0">
                                     {profile.config.sslMode || 'require'}
                                   </Badge>
                                 </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">-</span>
                               )}
-                            </div>
-                            
-                            <div className="flex items-center gap-1.5 mt-2 pt-1.5 border-t border-border/50">
-                              <Clock className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(profile.lastUsed).toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-1">
-                            {!isActive && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleSwitchProfile(profile.id)}
-                                className="h-7 px-2 text-xs"
-                              >
-                                Switch
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setFormData(profile.config);
-                                setShowForm(true);
-                                setIsEditing(true);
-                              }}
-                              className="h-7 w-7 p-0"
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteProfile(profile.id)}
-                              className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                            </td>
+                            <td className="p-3">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(profile.lastUsed).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center gap-1">
+                                {!isActive && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => handleSwitchProfile(profile.id)}
+                                    className="h-7 px-2 text-xs"
+                                  >
+                                    Switch
+                                  </Button>
+                                )}
+                                {isActive && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowActiveProfileModal(true)}
+                                    className="h-7 px-2 text-xs"
+                                  >
+                                    View
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFormData(profile.config);
+                                    setShowForm(true);
+                                    setIsEditing(true);
+                                  }}
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProfile(profile.id);
+                                  }}
+                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
-                <div className="text-center py-6">
+                <div className="text-center py-8">
                   <Database className="h-8 w-8 mx-auto mb-2 opacity-50 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground mb-3">No connection profiles</p>
                   <Button onClick={() => setShowForm(true)} size="sm">
@@ -777,23 +815,20 @@ export function DatabaseConfiguration() {
             </CardContent>
           </Card>
 
-          {/* Active Profile Configuration Details */}
+          {/* Active Profile Configuration Modal */}
           {activeProfile && (
-            <Card className="shadow-lg border-2">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
+            <Dialog open={showActiveProfileModal} onOpenChange={setShowActiveProfileModal}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-primary" />
+                    <DialogTitle>Active Profile Configuration</DialogTitle>
                   </div>
-                  <div>
-                    <CardTitle className="text-xl">Active Profile Configuration</CardTitle>
-                    <CardDescription className="mt-1">
-                      Current database connection details and status
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-5">
+                  <DialogDescription>
+                    Current database connection details and status
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
                 {/* Connection Status */}
                 {connectionStatus !== 'idle' && (
                   <div className={`flex items-center gap-2 p-2 rounded border text-xs ${
@@ -979,18 +1014,48 @@ export function DatabaseConfiguration() {
                     </Button>
                   </div>
                   
+                </div>
+                </div>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
                   <Button
                     onClick={() => navigate("/")}
                     variant="ghost"
-                    className="w-full h-8 text-xs"
+                    className="w-full sm:w-auto"
                     disabled={isLoading || testingConnection || syncingTables}
                   >
-                    <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+                    <ArrowLeft className="h-4 w-4 mr-2" />
                     Back to Companies
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                      onClick={handleConfigureNew}
+                      variant="outline"
+                      className="flex-1 sm:flex-none"
+                      disabled={isLoading || testingConnection || syncingTables}
+                    >
+                      New DB
+                    </Button>
+                    <Button 
+                      onClick={handleUseExisting} 
+                      className="flex-1 sm:flex-none"
+                      disabled={isLoading || testingConnection || syncingTables}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          Use This
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )}
 
           {/* No Active Profile - Show Default Config */}
