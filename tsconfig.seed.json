@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  "include": ["scripts/seed.ts", "scripts/seed-database.ts", "src/services/seed.service.ts", "src/database/**/*.ts", "src/services/database-migration.service.ts", "src/shared/**/*.ts"]
+}
+
