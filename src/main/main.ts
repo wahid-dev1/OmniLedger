@@ -154,12 +154,29 @@ app.on("window-all-closed", () => {
 });
 
 // IPC Handlers for database operations
+// Helper function to get default SQLite database path
+// Uses app.getPath('userData') in production for proper directory
+const getDefaultDbPath = (): string => {
+  if (app.isReady()) {
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'data', 'omniledger.db');
+    // Ensure data directory exists
+    const dataDir = path.dirname(dbPath);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    return dbPath;
+  }
+  // Fallback for when app is not ready yet
+  return './data/omniledger.db';
+};
+
 // Default SQLite connection for the app
 // TODO: Make this work with runtime database configuration per user
-const defaultDbConfig: DatabaseConfig = {
+const getDefaultDbConfig = (): DatabaseConfig => ({
   type: "sqlite",
-  connectionString: "./data/omniledger.db",
-};
+  connectionString: getDefaultDbPath(),
+});
 
 // Store the active database configuration (set by user via UI)
 // This is used when recreating connections after they're closed
@@ -225,7 +242,8 @@ const initializeDatabaseConnection = async () => {
     }
     
     // Use saved config if available, otherwise use default SQLite
-    const configToUse = savedActiveConfig || defaultDbConfig;
+    // Get default config dynamically to ensure proper path resolution
+    const configToUse = savedActiveConfig || getDefaultDbConfig();
     
     // Create Sequelize instance with the appropriate config
     defaultSequelize = SequelizeConfig.createSequelize(configToUse);
@@ -242,10 +260,11 @@ const initializeDatabaseConnection = async () => {
     console.error('Failed to initialize database:', error);
     // If saved config fails, fall back to default SQLite
     const savedConfig = loadActiveDbConfig();
-    if (savedConfig && savedConfig !== defaultDbConfig) {
+    if (savedConfig) {
       console.log('Falling back to default SQLite connection...');
       try {
-        defaultSequelize = SequelizeConfig.createSequelize(defaultDbConfig);
+        const fallbackConfig = getDefaultDbConfig();
+        defaultSequelize = SequelizeConfig.createSequelize(fallbackConfig);
         initializeAllModels(defaultSequelize);
         await defaultSequelize.authenticate();
         console.log('Default SQLite connection established.');
@@ -368,7 +387,7 @@ async function recreateDefaultConnection(): Promise<Sequelize> {
   console.warn('Default database connection was closed, recreating...');
   try {
     // Use active config if available, otherwise use default SQLite config
-    const configToUse = activeDbConfig || defaultDbConfig;
+    const configToUse = activeDbConfig || getDefaultDbConfig();
     
     console.log('Recreating connection with config:', {
       type: configToUse.type,

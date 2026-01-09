@@ -996,7 +996,8 @@ export function DatabaseConfiguration() {
                     </Button>
                   </div>
                   
-                  <div className="flex gap-2 pt-1 border-t">
+                  {/* Use This and New DB buttons - HIDDEN */}
+                  {/* <div className="flex gap-2 pt-1 border-t">
                     <Button 
                       onClick={handleUseExisting} 
                       className="flex-1"
@@ -1023,11 +1024,12 @@ export function DatabaseConfiguration() {
                     >
                       New DB
                     </Button>
-                  </div>
+                  </div> */}
                   
                 </div>
                 </div>
-                <DialogFooter className="flex-col sm:flex-row gap-2">
+                {/* DialogFooter - HIDDEN */}
+                {/* <DialogFooter className="flex-col sm:flex-row gap-2">
                   <Button
                     onClick={() => navigate("/")}
                     variant="ghost"
@@ -1064,13 +1066,13 @@ export function DatabaseConfiguration() {
                       )}
                     </Button>
                   </div>
-                </DialogFooter>
+                </DialogFooter> */}
               </DialogContent>
             </Dialog>
           )}
 
-          {/* No Active Profile - Show Default Config */}
-          {!activeProfile && databaseConfig && (
+          {/* No Active Profile - Show Default Config - HIDDEN */}
+          {/* {!activeProfile && databaseConfig && (
             <Card className="border">
               <CardHeader className="pb-2 pt-2 px-3">
                 <div className="flex items-center gap-2">
@@ -1214,7 +1216,7 @@ export function DatabaseConfiguration() {
                 </div>
               </CardContent>
             </Card>
-          )}
+          )} */}
         </div>
       </div>
     );

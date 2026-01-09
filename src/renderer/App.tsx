@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import { CompanyConfiguration } from "@/components/CompanyConfiguration";
 import { DatabaseConfiguration } from "@/components/DatabaseConfiguration";
 import { SplashScreen } from "@/components/SplashScreen";
@@ -27,8 +27,10 @@ import { TransactionDetail } from "@/components/TransactionDetail";
 import { ReportsScreen } from "@/components/ReportsScreen";
 
 function App() {
+  // HashRouter is required for Electron/file:// production builds.
+  // BrowserRouter uses pathname which becomes /.../index.html under file:// and breaks route matching.
   return (
-    <BrowserRouter>
+    <HashRouter>
       <div className="min-h-screen bg-background">
         <Routes>
           <Route path="/" element={<SplashScreen />} />
@@ -67,7 +69,7 @@ function App() {
           <Route path="/company/:companyId/reports" element={<ReportsScreen />} />
         </Routes>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

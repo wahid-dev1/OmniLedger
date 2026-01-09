@@ -12,9 +12,23 @@ export function SplashScreen() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [hasCheckedCompanies, setHasCheckedCompanies] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadCompanies();
+    // Set a timeout to ensure we show something even if the API call hangs
+    const timeout = setTimeout(() => {
+      if (!hasCheckedCompanies) {
+        setInitError("Timeout waiting for database connection");
+        setLoadingCompanies(false);
+        setHasCheckedCompanies(true);
+      }
+    }, 5000); // 5 second timeout
+    
+    loadCompanies().finally(() => {
+      clearTimeout(timeout);
+    });
+    
+    return () => clearTimeout(timeout);
   }, []);
 
   const loadCompanies = async () => {
@@ -22,8 +36,17 @@ export function SplashScreen() {
     setError(null);
 
     try {
+      // Check if electronAPI is available
+      if (!(window as any).electronAPI) {
+        console.error("electronAPI is not available!");
+        setError("Electron API is not available. Please ensure the app is running in Electron.");
+        setLoadingCompanies(false);
+        setHasCheckedCompanies(true);
+        return;
+      }
+
       // Call IPC to get companies from main process
-      const result = await (window as any).electronAPI?.getCompanies();
+      const result = await (window as any).electronAPI.getCompanies();
       
       if (result?.success && result.data) {
         // Map Prisma data to Company type
@@ -70,8 +93,17 @@ export function SplashScreen() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-          <p className="text-muted-foreground">Loading companies...</p>
+          {initError ? (
+            <>
+              <p className="text-destructive font-bold">{initError}</p>
+              <p className="text-muted-foreground">Please check your database configuration.</p>
+            </>
+          ) : (
+            <>
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+              <p className="text-muted-foreground">Loading companies...</p>
+            </>
+          )}
         </div>
       </div>
     );

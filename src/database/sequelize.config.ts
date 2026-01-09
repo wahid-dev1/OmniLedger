@@ -4,9 +4,113 @@
  */
 
 import { Sequelize, Options } from 'sequelize';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import type { DatabaseConfig } from '../shared/types';
 
+// Import Electron app only in main process context (will be undefined in renderer)
+let electronApp: typeof import('electron').app | null = null;
+try {
+  // Only import in main process - check if we're in Node.js environment
+  // In Electron main process, window is not defined, but process is
+  if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    electronApp = require('electron').app;
+  }
+} catch {
+  // Not in Electron context or in renderer - that's okay
+}
+
 export class SequelizeConfig {
+  /**
+   * Resolve SQLite database path to absolute path
+   * In production Electron builds, relative paths won't work correctly
+   * This function ensures the path is absolute and resolves to userData directory
+   */
+  static resolveSQLitePath(connectionString: string | undefined): string {
+    let dbPath = connectionString || './data/omniledger.db';
+    
+    // Remove 'file:' prefix if present (Prisma format)
+    if (dbPath.startsWith('file:')) {
+      dbPath = dbPath.replace('file:', '');
+    }
+    
+    // If path is already absolute, use it as-is (but ensure directory exists)
+    if (path.isAbsolute(dbPath)) {
+      const dbDir = path.dirname(dbPath);
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+      return dbPath;
+    }
+    
+    // Try to use Electron app.getPath if available and ready
+    // This handles production builds correctly
+    const isProduction = process.env.NODE_ENV === 'production' || 
+                         (electronApp && electronApp.isPackaged);
+    
+    if (electronApp) {
+      try {
+        // Check if app is ready (will throw if not ready)
+        if (electronApp.isReady()) {
+          const userDataPath = electronApp.getPath('userData');
+          const dataDir = path.join(userDataPath, 'data');
+          
+          // Ensure data directory exists
+          if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+          }
+          
+          // If relative path starts with './', resolve from data directory
+          // Otherwise, resolve from userData directory
+          if (dbPath.startsWith('./')) {
+            dbPath = dbPath.replace(/^\.\//, '');
+            const resolvedPath = path.join(dataDir, dbPath);
+            console.log(`[SequelizeConfig] Resolved SQLite path (production): ${resolvedPath}`);
+            return resolvedPath;
+          } else {
+            const resolvedPath = path.join(userDataPath, dbPath);
+            console.log(`[SequelizeConfig] Resolved SQLite path (production): ${resolvedPath}`);
+            return resolvedPath;
+          }
+        }
+      } catch (error) {
+        // App not ready yet, fall through to development resolution
+        console.log('[SequelizeConfig] Electron app not ready, using development path resolution');
+      }
+    }
+    
+    // In development or when Electron app is not available/ready:
+    // Resolve relative to current working directory
+    // Also check if we're in a packaged Electron app (production mode)
+    // In that case, try to use a sensible default location
+    if (isProduction) {
+      // In production but app not ready, use OS-specific default location
+      const defaultDataDir = process.platform === 'win32'
+        ? path.join(os.homedir(), 'AppData', 'Roaming', 'OmniLedger', 'data')
+        : process.platform === 'darwin'
+        ? path.join(os.homedir(), 'Library', 'Application Support', 'OmniLedger', 'data')
+        : path.join(os.homedir(), '.config', 'OmniLedger', 'data');
+      
+      if (!fs.existsSync(defaultDataDir)) {
+        fs.mkdirSync(defaultDataDir, { recursive: true });
+      }
+      
+      const resolvedPath = dbPath.startsWith('./')
+        ? path.join(defaultDataDir, dbPath.replace(/^\.\//, ''))
+        : path.join(defaultDataDir, dbPath);
+      
+      console.log(`[SequelizeConfig] Resolved SQLite path (production fallback): ${resolvedPath}`);
+      return resolvedPath;
+    }
+    
+    // Development mode: resolve relative to current working directory
+    const resolvedPath = path.resolve(process.cwd(), dbPath);
+    console.log(`[SequelizeConfig] Resolved SQLite path (development): ${resolvedPath}`);
+    return resolvedPath;
+  }
+
   /**
    * Configure SQLite database with PRAGMA settings for better concurrency
    * This should be called after the connection is established
@@ -64,11 +168,16 @@ export class SequelizeConfig {
     switch (config.type) {
       case 'sqlite': {
         // SQLite configuration
-        // Remove 'file:' prefix if present (Prisma format)
-        let dbPath = config.connectionString || './data/omniledger.db';
-        if (dbPath.startsWith('file:')) {
-          dbPath = dbPath.replace('file:', '');
+        // Resolve path to absolute path (important for production builds)
+        const dbPath = this.resolveSQLitePath(config.connectionString);
+        
+        // Ensure the directory exists before creating the database
+        const dbDir = path.dirname(dbPath);
+        if (!fs.existsSync(dbDir)) {
+          fs.mkdirSync(dbDir, { recursive: true });
         }
+        
+        console.log("   Resolved SQLite path:", dbPath);
         
         // SQLite-specific optimizations to prevent locking issues:
         // 1. WAL mode (Write-Ahead Logging) - allows concurrent reads during writes
