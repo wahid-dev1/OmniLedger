@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/useAppStore";
 import type { Company } from "@shared/types";
 import { Building2, Plus, Database, Loader2 } from "lucide-react";
+import logo from "@/assets/logo.svg";
 
 export function SplashScreen() {
   const navigate = useNavigate();
@@ -15,6 +16,12 @@ export function SplashScreen() {
   const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
+    // If no database config, redirect to landing page
+    if (!databaseConfig) {
+      navigate("/", { replace: true });
+      return;
+    }
+
     // Set a timeout to ensure we show something even if the API call hangs
     const timeout = setTimeout(() => {
       if (!hasCheckedCompanies) {
@@ -29,7 +36,7 @@ export function SplashScreen() {
     });
     
     return () => clearTimeout(timeout);
-  }, []);
+  }, [databaseConfig, navigate]);
 
   const loadCompanies = async () => {
     setLoadingCompanies(true);
@@ -37,6 +44,7 @@ export function SplashScreen() {
 
     try {
       // Check if electronAPI is available
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (!(window as any).electronAPI) {
         console.error("electronAPI is not available!");
         setError("Electron API is not available. Please ensure the app is running in Electron.");
@@ -46,10 +54,12 @@ export function SplashScreen() {
       }
 
       // Call IPC to get companies from main process
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (window as any).electronAPI.getCompanies();
       
       if (result?.success && result.data) {
         // Map Prisma data to Company type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mappedCompanies: Company[] = result.data.map((c: any) => ({
           id: c.id,
           name: c.name,
@@ -109,51 +119,11 @@ export function SplashScreen() {
     );
   }
 
-  // If no database config, show database configuration option
+  // If no database config, redirect (handled in useEffect, but show loading in case)
   if (!databaseConfig) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-4">OmniLedger</h1>
-            <p className="text-muted-foreground text-lg">
-              Desktop Inventory & Accounting System
-            </p>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Database className="h-6 w-6 text-muted-foreground" />
-                <div>
-                  <CardTitle>Database Configuration Required</CardTitle>
-                  <CardDescription>
-                    Please configure your database connection to get started.
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  OmniLedger supports multiple database types:
-                </p>
-                <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-4">
-                  <li>SQLite - For local development</li>
-                  <li>PostgreSQL - For production use</li>
-                  <li>MySQL - Alternative relational database</li>
-                  <li>MSSQL - Microsoft SQL Server</li>
-                </ul>
-                <div className="flex justify-end pt-4">
-                  <Button onClick={handleConfigureDatabase}>
-                    <Database className="h-4 w-4 mr-2" />
-                    Configure Database
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }

@@ -70,6 +70,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("check-migration-needed", config),
   seedDatabase: (config: any, clearExisting?: boolean) =>
     ipcRenderer.invoke("seed-database", config, clearExisting),
+  // Mobile API Server
+  startMobileServer: (config: any) => ipcRenderer.invoke("mobile-server:start", config),
+  stopMobileServer: () => ipcRenderer.invoke("mobile-server:stop"),
+  getMobileServerStatus: () => ipcRenderer.invoke("mobile-server:status"),
+  getMobileServerConfig: () => ipcRenderer.invoke("mobile-server:get-config"),
+  getNetworkInfo: () => ipcRenderer.invoke("mobile-server:get-network-info"),
 });
 
 // Type definitions for the exposed API
@@ -133,5 +139,11 @@ export type ElectronAPI = {
   runDatabaseMigrations: (config: any) => Promise<{ success: boolean; error?: string }>;
   checkMigrationNeeded: (config: any) => Promise<{ needed: boolean; currentVersion?: string | null; requiredVersion: string; error?: string }>;
   seedDatabase: (config: any, clearExisting?: boolean) => Promise<{ success: boolean; message?: string; error?: string }>;
+  // Mobile API Server
+  startMobileServer: (config: any) => Promise<{ success: boolean; error?: string; port?: number; apiKey?: string }>;
+  stopMobileServer: () => Promise<{ success: boolean; error?: string }>;
+  getMobileServerStatus: () => Promise<{ success: boolean; data?: any; error?: string }>;
+  getMobileServerConfig: () => Promise<{ success: boolean; data?: any; error?: string }>;
+  getNetworkInfo: () => Promise<{ success: boolean; data?: Array<{ interface: string; address: string; family: string }>; error?: string }>;
 };
 

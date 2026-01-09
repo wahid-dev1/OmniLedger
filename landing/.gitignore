@@ -1,0 +1,11 @@
+# Ignore editor files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignore build files (if any)
+dist/
+build/

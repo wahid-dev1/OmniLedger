@@ -3818,8 +3818,177 @@ ipcMain.handle("seed-database", async (_event, config: DatabaseConfig, clearExis
   }
 });
 
-// Cleanup on app quit
+// ==================== Mobile API Server IPC Handlers ====================
+
+import { ApiServerService } from '../services/api-server.service';
+import type { MobileServerConfig } from '../shared/types';
+
+// Load server config from storage
+const getServerConfigPath = (): string => {
+  const userDataPath = app.getPath('userData');
+  return path.join(userDataPath, 'mobile-server-config.json');
+};
+
+const loadServerConfig = (): MobileServerConfig | null => {
+  try {
+    const configPath = getServerConfigPath();
+    if (fs.existsSync(configPath)) {
+      const configData = fs.readFileSync(configPath, 'utf-8');
+      return JSON.parse(configData) as MobileServerConfig;
+    }
+  } catch (error) {
+    console.error('Error loading server config:', error);
+  }
+  return null;
+};
+
+const saveServerConfig = (config: MobileServerConfig): void => {
+  try {
+    const configPath = getServerConfigPath();
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Error saving server config:', error);
+  }
+};
+
+// Start mobile API server
+ipcMain.handle('mobile-server:start', async (_event, config: MobileServerConfig) => {
+  try {
+    // Get company name for server name if not provided
+    if (!config.serverName) {
+      try {
+        const companies = await Company.findAll({ limit: 1 });
+        if (companies.length > 0) {
+          config.serverName = companies[0].name || 'OmniLedger Server';
+        }
+      } catch (error) {
+        console.error('Error getting company name:', error);
+      }
+    }
+
+    // Helper function to get database connection
+    const getDatabaseConnection = () => {
+      if (!defaultSequelize) {
+        throw new Error('Database connection not available. Please configure and connect to a database first.');
+      }
+      return defaultSequelize;
+    };
+
+    const result = await ApiServerService.start(config, getDatabaseConnection);
+
+    if (result.success) {
+      saveServerConfig(config);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error starting mobile API server:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+});
+
+// Stop mobile API server
+ipcMain.handle('mobile-server:stop', async () => {
+  try {
+    const result = await ApiServerService.stop();
+    return result;
+  } catch (error) {
+    console.error('Error stopping mobile API server:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+});
+
+// Get mobile API server status
+ipcMain.handle('mobile-server:status', () => {
+  try {
+    const status = ApiServerService.getStatus();
+    return {
+      success: true,
+      data: status,
+    };
+  } catch (error) {
+    console.error('Error getting mobile API server status:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+});
+
+// Get server config
+ipcMain.handle('mobile-server:get-config', () => {
+  try {
+    const config = loadServerConfig();
+    return {
+      success: true,
+      data: config || {
+        enabled: false,
+        port: 3000,
+        host: '0.0.0.0',
+        enableCORS: true,
+        requireAuth: true,
+        enableHTTPS: false,
+        enableDiscovery: true,
+      } as MobileServerConfig,
+    };
+  } catch (error) {
+    console.error('Error getting server config:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+});
+
+// Get network interfaces (for displaying server address)
+ipcMain.handle('mobile-server:get-network-info', () => {
+  try {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    const addresses: Array<{ interface: string; address: string; family: string }> = [];
+
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name] || []) {
+        // Skip internal (loopback) addresses
+        if (iface.family === 'IPv4' && !iface.internal) {
+          addresses.push({
+            interface: name,
+            address: iface.address,
+            family: iface.family,
+          });
+        }
+      }
+    }
+
+    return {
+      success: true,
+      data: addresses,
+    };
+  } catch (error) {
+    console.error('Error getting network info:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+});
+
+// Cleanup on app quit - stop API server if running
 app.on("before-quit", async () => {
-  await defaultSequelize.close();
+  // Stop API server if running
+  if (ApiServerService.isRunning()) {
+    await ApiServerService.stop();
+  }
+  
+  // Close database connection
+  if (defaultSequelize) {
+    await defaultSequelize.close();
+  }
 });
 

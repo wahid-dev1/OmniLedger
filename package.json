@@ -54,6 +54,8 @@
     "build:win:dir": "npm run build && electron-builder --win --dir",
     "build:mac": "npm run build && electron-builder --mac",
     "build:mac:dmg": "npm run build && electron-builder --mac dmg",
+    "build:all": "npm run build && electron-builder --win --mac",
+    "build:release": "npm run build && electron-builder --win --mac",
     "postinstall": "electron-rebuild -f -w sqlite3",
     "rebuild:electron": "electron-rebuild -f -w sqlite3",
     "preview": "vite preview",
@@ -97,7 +99,12 @@
     "react-router-dom": "^6.21.1",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7",
-    "zustand": "^4.4.7"
+    "zustand": "^4.4.7",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
@@ -105,6 +112,10 @@
     "@types/react-dom": "^18.2.18",
     "@types/better-sqlite3": "^7.6.11",
     "@types/pg": "^8.11.5",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
     "@vitejs/plugin-react": "^4.2.1",
@@ -150,9 +161,17 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "publisherName": "OmniLedger"
     },
     "nsis": {
       "oneClick": false,
@@ -169,11 +188,23 @@
             "x64",
             "arm64"
           ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "category": "public.app-category.finance",
+      "icon": "build/icon.icns",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "identity": null
+      "identity": null,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": null,
+      "entitlementsInherit": null
     },
     "dmg": {
       "title": "${productName} ${version}",

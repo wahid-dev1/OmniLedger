@@ -1,7 +1,8 @@
 import { Link, useParams, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, ShoppingCart, Users, Home, BookOpen, FileText, Building2, ShoppingBag, BarChart3, Database } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, Home, BookOpen, FileText, Building2, ShoppingBag, BarChart3, Database, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import logoIcon from "@/assets/logo-compact.svg";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -26,6 +27,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const globalNavItems = [
     { path: "/", label: "Companies", icon: Building2 },
     { path: "/database/config", label: "Database Settings", icon: Database },
+    { path: "/mobile-server", label: "Mobile Server", icon: Server },
   ];
 
   return (
@@ -33,9 +35,8 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Navigation Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 border-r bg-card">
         <div className="p-6">
-          <Link to="/" className="flex items-center gap-2 mb-8">
-            <Home className="h-6 w-6" />
-            <span className="font-bold text-lg">OmniLedger</span>
+          <Link to="/" className="flex items-center mb-8 hover:opacity-80 transition-opacity group">
+            <img src={logoIcon} alt="OmniLedger" className="h-8 w-auto" />
           </Link>
           <nav className="space-y-2">
             {navItems.map((item) => {

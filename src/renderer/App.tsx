@@ -2,6 +2,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import { CompanyConfiguration } from "@/components/CompanyConfiguration";
 import { DatabaseConfiguration } from "@/components/DatabaseConfiguration";
 import { SplashScreen } from "@/components/SplashScreen";
+import { LandingPage } from "@/components/LandingPage";
 import { Dashboard } from "@/components/Dashboard";
 import { ProductsScreen } from "@/components/ProductsScreen";
 import { ProductForm } from "@/components/ProductForm";
@@ -25,6 +26,7 @@ import { AccountForm } from "@/components/AccountForm";
 import { LedgerScreen } from "@/components/LedgerScreen";
 import { TransactionDetail } from "@/components/TransactionDetail";
 import { ReportsScreen } from "@/components/ReportsScreen";
+import { MobileServerConfig } from "@/components/MobileServerConfig";
 
 function App() {
   // HashRouter is required for Electron/file:// production builds.
@@ -33,7 +35,8 @@ function App() {
     <HashRouter>
       <div className="min-h-screen bg-background">
         <Routes>
-          <Route path="/" element={<SplashScreen />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/companies" element={<SplashScreen />} />
           <Route
             path="/database/config"
             element={<DatabaseConfiguration />}
@@ -67,6 +70,7 @@ function App() {
           <Route path="/company/:companyId/ledger" element={<LedgerScreen />} />
           <Route path="/company/:companyId/ledger/:transactionId" element={<TransactionDetail />} />
           <Route path="/company/:companyId/reports" element={<ReportsScreen />} />
+          <Route path="/mobile-server" element={<MobileServerConfig />} />
         </Routes>
       </div>
     </HashRouter>

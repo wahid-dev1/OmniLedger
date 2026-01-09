@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="OmniLedger - A comprehensive Desktop Inventory & Accounting System for modern businesses. Track inventory, manage sales, handle accounting, and more.">
+    <meta name="keywords" content="inventory management, accounting software, desktop app, POS, batch tracking, financial management">
+    <meta name="author" content="OmniLedger">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://wahid-dev1.github.io/omniledger/">
+    <meta property="og:title" content="OmniLedger - Desktop Inventory & Accounting System">
+    <meta property="og:description" content="A comprehensive Desktop Inventory & Accounting System for modern businesses">
+    <meta property="og:image" content="https://wahid-dev1.github.io/omniledger/icon-square.svg">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://wahid-dev1.github.io/omniledger/">
+    <meta property="twitter:title" content="OmniLedger - Desktop Inventory & Accounting System">
+    <meta property="twitter:description" content="A comprehensive Desktop Inventory & Accounting System for modern businesses">
+    <meta property="twitter:image" content="https://wahid-dev1.github.io/omniledger/icon-square.svg">
+    
+    <title>OmniLedger - Desktop Inventory & Accounting System</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-content">
+                <a href="#" class="logo-link">
+                    <img src="logo.svg" alt="OmniLedger" class="logo">
+                </a>
+                <div class="nav-links">
+                    <a href="#features" class="nav-link">Features</a>
+                    <a href="#use-cases" class="nav-link">Use Cases</a>
+                    <a href="#downloads" class="nav-link">Downloads</a>
+                    <a href="#documentation" class="nav-link">Docs</a>
+                    <a href="https://github.com/wahid-dev1/omniledger" class="nav-link button-secondary" target="_blank" rel="noopener noreferrer">
+                        GitHub
+                    </a>
+                </div>
+                <button class="mobile-menu-toggle" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="badge">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline>
+                    </svg>
+                    Desktop Inventory & Accounting System
+                </div>
+                <h1 class="hero-title">
+                    <span class="gradient-text">OmniLedger</span>
+                </h1>
+                <p class="hero-description">
+                    A comprehensive desktop solution for inventory management, sales tracking, and financial accounting.
+                    Built for modern businesses that need power, flexibility, and control.
+                </p>
+                <div class="hero-buttons">
+                    <a href="https://github.com/wahid-dev1/omniledger/releases" class="button button-primary" target="_blank" rel="noopener noreferrer">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download Now
+                    </a>
+                    <a href="https://github.com/wahid-dev1/omniledger" class="button button-outline" target="_blank" rel="noopener noreferrer">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                        </svg>
+                        View on GitHub
+                    </a>
+                </div>
+                <div class="hero-badges">
+                    <span class="version-badge">v1.0.1</span>
+                    <span class="platform-badge">Windows • macOS • Linux</span>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="preview-container">
+                    <img src="icon-square.svg" alt="OmniLedger Preview" class="preview-image">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Everything You Need to Run Your Business</h2>
+                <p class="section-description">
+                    Powerful features designed to streamline your operations, from inventory management to financial reporting.
+                </p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon blue">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Advanced Inventory Management</h3>
+                    <p class="feature-description">
+                        Track products with SKU, pricing, categories, and comprehensive batch tracking with expiry dates.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon green">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Point of Sale (POS)</h3>
+                    <p class="feature-description">
+                        Streamlined sales interface with batch deduction (FIFO or manual selection) and intelligent returns management.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon purple">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Double-Entry Accounting</h3>
+                    <p class="feature-description">
+                        Full double-entry ledger system with configurable chart of accounts and automatic transaction generation.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon orange">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">CRM & SRM</h3>
+                    <p class="feature-description">
+                        Complete customer and supplier relationship management with area-based categorization and history tracking.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon pink">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Custom Reporting</h3>
+                    <p class="feature-description">
+                        Dynamic query builder for personalized reports with PDF and Excel export capabilities.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon indigo">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Multi-Database Support</h3>
+                    <p class="feature-description">
+                        Flexible database configuration - SQLite, PostgreSQL, MySQL, or MSSQL. Switch anytime without data loss.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits Section -->
+    <section id="use-cases" class="benefits">
+        <div class="container">
+            <div class="benefits-content">
+                <div class="benefits-text">
+                    <div class="badge">Why Choose OmniLedger</div>
+                    <h2 class="section-title">Built for Growth and Flexibility</h2>
+                    <p class="section-description">
+                        OmniLedger is designed with your business needs in mind. Whether you're a small retail store
+                        or a multi-location enterprise, our system scales with you.
+                    </p>
+                    <ul class="benefits-list">
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Multi-company support with complete data isolation
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Batch tracking with expiry date management
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Excel import/export with template support
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Real-time inventory and financial reporting
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Role-based access control (Admin, Manager, Cashier)
+                        </li>
+                        <li>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            API-first architecture ready for cloud migration
+                        </li>
+                    </ul>
+                </div>
+                <div class="benefits-cards">
+                    <div class="benefit-card">
+                        <div class="benefit-icon blue">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="2" x2="12" y2="6"></line>
+                                <line x1="12" y1="18" x2="12" y2="22"></line>
+                                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                                <line x1="2" y1="12" x2="6" y2="12"></line>
+                                <line x1="18" y1="12" x2="22" y2="12"></line>
+                                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                            </svg>
+                        </div>
+                        <h3>Cross-Platform</h3>
+                        <p>Windows, macOS, and Linux support</p>
+                    </div>
+                    <div class="benefit-card">
+                        <div class="benefit-icon green">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                        </div>
+                        <h3>Secure & Private</h3>
+                        <p>Your data stays on your machine</p>
+                    </div>
+                    <div class="benefit-card">
+                        <div class="benefit-icon purple">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                        </div>
+                        <h3>Excel Integration</h3>
+                        <p>Import and export with ease</p>
+                    </div>
+                    <div class="benefit-card">
+                        <div class="benefit-icon orange">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                                <polyline points="17 6 23 6 23 12"></polyline>
+                            </svg>
+                        </div>
+                        <h3>Scalable</h3>
+                        <p>Ready for cloud migration</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Downloads Section -->
+    <section id="downloads" class="downloads">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Get Started Today</h2>
+                <p class="section-description">
+                    Download OmniLedger for your platform and start managing your business efficiently.
+                </p>
+            </div>
+            <div class="download-cards">
+                <div class="download-card">
+                    <div class="download-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                            <line x1="2" y1="10" x2="22" y2="10"></line>
+                        </svg>
+                    </div>
+                    <h3>Windows</h3>
+                    <p>.exe installer or portable version</p>
+                    <a href="https://github.com/wahid-dev1/omniledger/releases" class="button button-primary" target="_blank" rel="noopener noreferrer">
+                        Download for Windows
+                    </a>
+                </div>
+                <div class="download-card">
+                    <div class="download-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"></path>
+                        </svg>
+                    </div>
+                    <h3>macOS</h3>
+                    <p>.dmg for Intel and Apple Silicon</p>
+                    <a href="https://github.com/wahid-dev1/omniledger/releases" class="button button-primary" target="_blank" rel="noopener noreferrer">
+                        Download for macOS
+                    </a>
+                </div>
+                <div class="download-card">
+                    <div class="download-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
+                        </svg>
+                    </div>
+                    <h3>Linux</h3>
+                    <p>AppImage or build from source</p>
+                    <a href="https://github.com/wahid-dev1/omniledger/releases" class="button button-primary" target="_blank" rel="noopener noreferrer">
+                        Download for Linux
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Documentation Section -->
+    <section id="documentation" class="documentation">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Documentation & Resources</h2>
+                <p class="section-description">
+                    Learn how to get the most out of OmniLedger with our comprehensive documentation.
+                </p>
+            </div>
+            <div class="doc-cards">
+                <a href="https://github.com/wahid-dev1/omniledger#getting-started" class="doc-card" target="_blank" rel="noopener noreferrer">
+                    <div class="doc-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                    </div>
+                    <h3>Getting Started</h3>
+                    <p>Quick start guide to set up and run OmniLedger</p>
+                    <span class="doc-link">View Guide →</span>
+                </a>
+                <a href="https://github.com/wahid-dev1/omniledger/tree/main/docs" class="doc-card" target="_blank" rel="noopener noreferrer">
+                    <div class="doc-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                    </div>
+                    <h3>Documentation</h3>
+                    <p>Complete documentation and guides</p>
+                    <span class="doc-link">View Docs →</span>
+                </a>
+                <a href="https://github.com/wahid-dev1/omniledger/issues" class="doc-card" target="_blank" rel="noopener noreferrer">
+                    <div class="doc-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3>Support</h3>
+                    <p>Get help, report bugs, or request features</p>
+                    <span class="doc-link">View Issues →</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="container">
+            <div class="cta-content">
+                <h2 class="cta-title">Ready to Get Started?</h2>
+                <p class="cta-description">
+                    Join businesses using OmniLedger to streamline their operations and grow their business.
+                </p>
+                <div class="cta-buttons">
+                    <a href="https://github.com/wahid-dev1/omniledger/releases" class="button button-primary button-large" target="_blank" rel="noopener noreferrer">
+                        Download Now
+                    </a>
+                    <a href="https://github.com/wahid-dev1/omniledger" class="button button-outline button-large" target="_blank" rel="noopener noreferrer">
+                        View Source Code
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="logo.svg" alt="OmniLedger" class="footer-logo">
+                    <p class="footer-tagline">Desktop Inventory & Accounting System</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Product</h4>
+                        <a href="#features">Features</a>
+                        <a href="#downloads">Downloads</a>
+                        <a href="https://github.com/wahid-dev1/omniledger/releases">Releases</a>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <a href="#documentation">Documentation</a>
+                        <a href="https://github.com/wahid-dev1/omniledger#documentation">Guides</a>
+                        <a href="https://github.com/wahid-dev1/omniledger/issues">Support</a>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Community</h4>
+                        <a href="https://github.com/wahid-dev1/omniledger">GitHub</a>
+                        <a href="https://github.com/wahid-dev1/omniledger/issues">Issues</a>
+                        <a href="https://github.com/wahid-dev1/omniledger/blob/main/LICENSE">License</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 OmniLedger. Built with ❤️ by <a href="https://github.com/wahid-dev1" target="_blank" rel="noopener noreferrer">Wahid</a></p>
+                <div class="footer-social">
+                    <a href="https://github.com/wahid-dev1/omniledger" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

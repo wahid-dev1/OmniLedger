@@ -6,12 +6,14 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/wahid-dev1/omniledger)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/wahid-dev1/omniledger/build.yml?branch=main&label=build)](https://github.com/wahid-dev1/omniledger/actions)
+[![Releases](https://img.shields.io/github/v/release/wahid-dev1/omniledger?label=latest%20release)](https://github.com/wahid-dev1/omniledger/releases)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-blue.svg)](https://www.typescriptlang.org/)
 [![Electron](https://img.shields.io/badge/Electron-28+-blue.svg)](https://www.electronjs.org/)
 [![React](https://img.shields.io/badge/React-18+-61dafb.svg)](https://reactjs.org/)
 
-[Features](#-features) • [Quick Start](#-getting-started) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Report Bug](https://github.com/wahid-dev1/omniledger/issues)
+[Features](#-features) • [Downloads](#-download-pre-built-releases) • [Quick Start](#-getting-started) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Report Bug](https://github.com/wahid-dev1/omniledger/issues)
 
 </div>
 
@@ -221,11 +223,28 @@ npm run build:vite    # Build only React/Vite frontend
 npm run build:electron # Build only Electron main process
 
 # Platform-specific builds
-npm run build:win     # Build Windows installer (.exe)
+npm run build:win     # Build Windows installer (.exe) + portable
 npm run build:win:dir # Build Windows app directory (no installer)
-npm run build:mac     # Build macOS application
-npm run build:mac:dmg # Build macOS disk image (.dmg)
+npm run build:mac     # Build macOS application (.app)
+npm run build:mac:dmg # Build macOS disk image (.dmg) + zip
+npm run build:all     # Build for both Windows and macOS
+npm run build:release # Alias for build:all
 ```
+
+### 📥 Download Pre-built Releases
+
+Pre-built installers for Windows and macOS are available in the [Releases](https://github.com/wahid-dev1/omniledger/releases) section.
+
+**Windows:**
+- `OmniLedger-{version}-x64.exe` - NSIS installer with setup wizard
+- `OmniLedger-{version}-x64.exe` (portable) - Standalone executable
+
+**macOS:**
+- `OmniLedger-{version}-x64.dmg` - Disk image for Intel Macs
+- `OmniLedger-{version}-arm64.dmg` - Disk image for Apple Silicon (M1/M2/M3)
+- `OmniLedger-{version}-universal.dmg` - Universal binary (both architectures)
+
+> 💡 **Note**: Releases are automatically built via GitHub Actions when you create a tag. See [Building Locally](#-building-locally) for manual builds.
 
 ### Database & Seeding
 ```bash
@@ -238,6 +257,60 @@ npm run seed:database # Alternative seeding script
 npm run lint          # Run ESLint
 npm run format        # Format code with Prettier
 ```
+
+---
+
+## 🔨 Building Locally
+
+### Prerequisites for Building
+
+- **Node.js 18+** and npm
+- **Git** for cloning the repository
+- **Platform-specific tools**:
+  - **Windows**: Visual Studio Build Tools or Visual Studio
+  - **macOS**: Xcode Command Line Tools (`xcode-select --install`)
+
+### Building on Your Machine
+
+#### Build for Current Platform
+```bash
+# On Windows
+npm run build:win
+
+# On macOS
+npm run build:mac:dmg
+```
+
+#### Build for Multiple Platforms
+
+To build for all platforms, you'll need to build on each respective OS, or use GitHub Actions:
+
+**Option 1: Use GitHub Actions** (Recommended)
+1. Push code to your repository
+2. Create a tag: `git tag v1.0.1 && git push origin v1.0.1`
+3. GitHub Actions will automatically build for Windows and macOS
+4. Download artifacts from the Actions tab or Releases page
+
+**Option 2: Build Manually on Each Platform**
+- Use a Windows machine/VM for Windows builds
+- Use a macOS machine for macOS builds
+- Build artifacts will be in the `release/` directory
+
+### Creating a Release
+
+1. Update version in `package.json`
+2. Commit and push changes
+3. Create and push a tag:
+   ```bash
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+4. GitHub Actions will automatically:
+   - Build for Windows and macOS
+   - Create a GitHub Release
+   - Attach installers to the release
+
+---
 
 ## Database Schema
 

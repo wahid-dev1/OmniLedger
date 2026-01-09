@@ -23,7 +23,7 @@
       "@services/*": ["./src/services/*"]
     }
   },
-  "include": ["src/renderer"],
+  "include": ["src/renderer", "src/renderer/vite-env.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
 
