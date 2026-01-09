@@ -175,8 +175,7 @@
         }
       ],
       "icon": "build/icon.ico",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "publisherName": "OmniLedger"
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -263,12 +262,14 @@
         }
       ],
       "category": "Office",
-      "icon": "assets/icon.png",
+      "icon": "assets/icon.svg",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "desktop": {
-        "Name": "OmniLedger",
-        "Type": "Application",
-        "Categories": "Office;Finance;Accounting;"
+        "entry": {
+          "Name": "OmniLedger",
+          "Type": "Application",
+          "Categories": "Office;Finance;Accounting;"
+        }
       },
       "synopsis": "Desktop Inventory & Accounting System",
       "description": "A comprehensive desktop application for inventory management, sales tracking, and financial accounting with multi-company support."
