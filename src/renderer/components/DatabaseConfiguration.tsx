@@ -70,6 +70,8 @@ export function DatabaseConfiguration() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showActiveProfileModal, setShowActiveProfileModal] = useState(false);
+  const [showResyncConfirmDialog, setShowResyncConfirmDialog] = useState(false);
+  const [pendingSyncConfig, setPendingSyncConfig] = useState<DatabaseConfig | null>(null);
 
   // Load connection profiles
   useEffect(() => {
@@ -195,7 +197,7 @@ export function DatabaseConfiguration() {
       (window as any).electronAPI?.setActiveDatabaseConfig(profile.config);
       
       // Show success message
-      setSuccessMessage(`Profile "${profileName}" saved successfully!`);
+      setSuccessMessage(`"${profileName}" added to saved connections.`);
       setShowProfileDialog(false);
       setProfileNameInput("");
       
@@ -225,7 +227,7 @@ export function DatabaseConfiguration() {
   };
 
   const handleDeleteProfile = (profileId: string) => {
-    if (confirm("Are you sure you want to delete this connection profile?")) {
+    if (confirm("Remove this saved connection? You can add it again later.")) {
       deleteConnectionProfile(profileId);
       setProfiles(getConnectionProfiles());
       if (activeProfileId === profileId) {
@@ -314,16 +316,8 @@ export function DatabaseConfiguration() {
         setError(null);
         setErrorDetails(null);
         setConnectionStatus('connected');
-        
-        // Clear progress after showing success
-        setTimeout(() => {
-          setTestProgress([]);
-        // Show success message with option to sync tables
-        const shouldSync = confirm("✅ Connection successful!\n\nWould you like to sync/create database tables now?");
-        if (shouldSync) {
-            handleSyncTables(config);
-        }
-        }, 1000);
+        setPendingSyncConfig(config);
+        setTimeout(() => setTestProgress([]), 2000);
       } else {
         const parsedError = parseDatabaseError(new Error(result.error || "Failed to connect to database"));
         setErrorDetails(parsedError);
@@ -348,7 +342,7 @@ export function DatabaseConfiguration() {
     }
   };
 
-  const handleSyncTables = async (configToSync?: DatabaseConfig) => {
+  const handleSyncTables = async (configToSync?: DatabaseConfig, forceSync = false) => {
     const config = configToSync || formData || databaseConfig;
     
     if (!config) {
@@ -361,17 +355,14 @@ export function DatabaseConfiguration() {
     setInitializationStatus("Checking database schema...");
 
     try {
-      // First check if schema is initialized
       const schemaCheck = await window.electronAPI.checkSchemaInitialized(config);
       
-      if (schemaCheck.isInitialized) {
-        setInitializationStatus("Database tables already exist.");
-        const shouldReSync = confirm("Database tables already exist. Do you want to sync them anyway?");
-        if (!shouldReSync) {
-          setSyncingTables(false);
-          setInitializationStatus(null);
-          return;
-        }
+      if (schemaCheck.isInitialized && !forceSync) {
+        setPendingSyncConfig(config);
+        setShowResyncConfirmDialog(true);
+        setSyncingTables(false);
+        setInitializationStatus(null);
+        return;
       }
 
       setInitializationStatus("Initializing database schema and creating tables...");
@@ -381,25 +372,22 @@ export function DatabaseConfiguration() {
       
       if (result.success) {
         setError(null);
-        let message = "";
         if (result.migrated) {
-          message = "✅ Database tables created successfully!";
-          if (result.seeded) {
-            message += "\n\n🌱 Sample company data has been loaded:\n";
-            message += "   • Company: Acme Retail Store\n";
-            message += "   • Users: admin, manager, cashier\n";
-            message += "   • Products, customers, vendors, and sample transactions";
-          }
-          setInitializationStatus(message.split('\n')[0]);
-          alert(message);
+          const msg = result.seeded 
+            ? "Database tables created and sample data loaded (Acme Retail Store, demo users)."
+            : "Database tables created successfully.";
+          setInitializationStatus(msg);
+          setSuccessMessage(msg);
         } else {
-          setInitializationStatus("✅ Database tables already exist.");
-          alert("✅ Database tables already exist.");
+          setInitializationStatus("Database tables already exist.");
+          setSuccessMessage("Database schema is up to date.");
         }
+        setShowResyncConfirmDialog(false);
+        setPendingSyncConfig(null);
+        setTimeout(() => setSuccessMessage(null), 4000);
       } else {
         setError(result.error || "Failed to sync database tables");
-        setInitializationStatus(`❌ Error: ${result.error || "Failed to sync tables"}`);
-        alert(`❌ Failed to sync tables: ${result.error || "Unknown error"}`);
+        setInitializationStatus(`Error: ${result.error || "Failed to sync tables"}`);
       }
     } catch (error) {
       const errorMessage =
@@ -407,8 +395,7 @@ export function DatabaseConfiguration() {
           ? error.message
           : "Failed to sync database tables";
       setError(errorMessage);
-      setInitializationStatus(`❌ Error: ${errorMessage}`);
-      alert(`❌ Failed to sync tables: ${errorMessage}`);
+      setInitializationStatus(`Error: ${errorMessage}`);
     } finally {
       setSyncingTables(false);
       // Clear status after 3 seconds
@@ -621,7 +608,7 @@ export function DatabaseConfiguration() {
               </Button>
               <div>
                 <h1 className="text-xl font-bold">Database Configuration</h1>
-                <p className="text-xs text-muted-foreground">Manage connection profiles</p>
+                <p className="text-xs text-muted-foreground">Connect to a database or switch between saved connections</p>
               </div>
             </div>
             <Button
@@ -629,7 +616,7 @@ export function DatabaseConfiguration() {
               size="sm"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              New Profile
+              Add Connection
             </Button>
           </div>
 
@@ -639,7 +626,7 @@ export function DatabaseConfiguration() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Database className="h-4 w-4 text-primary" />
-                  <CardTitle className="text-base">Connection Profiles</CardTitle>
+                  <CardTitle className="text-base">Saved Connections</CardTitle>
                   {profiles.length > 0 && (
                     <Badge variant="secondary" className="ml-2 text-xs">
                       {profiles.length}
@@ -816,10 +803,10 @@ export function DatabaseConfiguration() {
               ) : (
                 <div className="text-center py-8">
                   <Database className="h-8 w-8 mx-auto mb-2 opacity-50 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-3">No connection profiles</p>
+                  <p className="text-sm text-muted-foreground mb-3">No saved connections yet</p>
                   <Button onClick={() => setShowForm(true)} size="sm">
                     <Plus className="h-3.5 w-3.5 mr-1.5" />
-                    Create Profile
+                    Add Connection
                   </Button>
                 </div>
               )}
@@ -833,7 +820,7 @@ export function DatabaseConfiguration() {
                 <DialogHeader>
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <DialogTitle>Active Profile Configuration</DialogTitle>
+                    <DialogTitle>Active Connection</DialogTitle>
                   </div>
                   <DialogDescription>
                     Current database connection details and status
@@ -1650,9 +1637,9 @@ export function DatabaseConfiguration() {
                   </div>
                   {initializationStatus && (
                     <div className={`p-3 text-sm rounded-md ${
-                      initializationStatus.includes("✅") 
+                      initializationStatus.toLowerCase().includes("success") || initializationStatus.toLowerCase().includes("created") || initializationStatus.toLowerCase().includes("up to date") 
                         ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
-                        : initializationStatus.includes("❌")
+                        : initializationStatus.includes("Error")
                         ? "bg-destructive/10 text-destructive"
                         : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
                     }`}>
@@ -1740,15 +1727,19 @@ export function DatabaseConfiguration() {
                 </div>
               )}
 
+              <p className="text-xs text-muted-foreground -mt-1">
+                <strong>Connect</strong> to use this database now. <strong>Save for Later</strong> adds it to your list for quick switching.
+              </p>
               <div className="flex justify-between items-center">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleSaveAsProfile}
                   disabled={isLoading}
+                  title="Add to saved connections without connecting"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Save as Profile
+                  Save for Later
                 </Button>
                 <div className="flex gap-4">
                 {isEditing ? (
@@ -1769,7 +1760,7 @@ export function DatabaseConfiguration() {
                   </Button>
                 )}
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Saving..." : isEditing ? "Update Configuration" : "Save Configuration"}
+                  {isLoading ? "Connecting..." : isEditing ? "Update & Connect" : "Connect"}
                 </Button>
                 </div>
               </div>
@@ -1782,9 +1773,9 @@ export function DatabaseConfiguration() {
       <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save Connection Profile</DialogTitle>
+            <DialogTitle>Save for Later</DialogTitle>
             <DialogDescription>
-              Enter a name for this connection profile. You can switch between saved profiles later.
+              Give this connection a name so you can switch to it quickly from your saved connections list.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1835,6 +1826,26 @@ export function DatabaseConfiguration() {
               ) : (
                 "Save Profile"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resync Confirm Dialog - when tables already exist */}
+      <Dialog open={showResyncConfirmDialog} onOpenChange={setShowResyncConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tables Already Exist</DialogTitle>
+            <DialogDescription>
+              Database tables are already present. Re-syncing will verify the schema and create any missing tables. Your data will not be overwritten.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowResyncConfirmDialog(false); setPendingSyncConfig(null); }}>
+              Cancel
+            </Button>
+            <Button onClick={() => pendingSyncConfig && handleSyncTables(pendingSyncConfig, true)}>
+              Sync Tables
             </Button>
           </DialogFooter>
         </DialogContent>

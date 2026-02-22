@@ -44,7 +44,7 @@ interface Customer {
 export function CustomerDetail() {
   const { companyId, customerId } = useParams<{ companyId: string; customerId: string }>();
   const navigate = useNavigate();
-  const { format } = useCompanyCurrency(companyId);
+  const { format, currency } = useCompanyCurrency(companyId);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [company, setCompany] = useState<{ name: string; address?: string; phone?: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -405,6 +405,7 @@ export function CustomerDetail() {
 
                 console.log('Generating PDF with company:', company);
                 generateCustomerStatementPDF({
+                  currency,
                   company: company && company.name ? company : undefined,
                   customer: {
                     name: customer.name,

@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Package, Tag, Loader2, Plus, AlertTriangle, CheckCircle, Calendar, Filter, Trash2, Edit, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { AppLayout } from "./AppLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,9 @@ interface Product {
   name: string;
   description?: string;
   category?: string;
+  trackByBatch?: boolean;
+  unitOfMeasurement?: string | null;
+  unitPrice?: number | string | null;
   totalStock?: number;
   availableStock?: number;
   isInStock?: boolean;
@@ -268,11 +272,13 @@ export function ProductsScreen() {
                     <tr className="border-b bg-muted/50">
                       <th className="text-left p-4 text-sm font-medium">SKU</th>
                       <th className="text-left p-4 text-sm font-medium">Name</th>
+                      <th className="text-left p-4 text-sm font-medium">Unit</th>
+                      <th className="text-left p-4 text-sm font-medium">Type</th>
                       <th className="text-left p-4 text-sm font-medium">Category</th>
                       <th className="text-left p-4 text-sm font-medium">Vendor</th>
                       <th className="text-right p-4 text-sm font-medium">Stock Status</th>
                       <th className="text-right p-4 text-sm font-medium">Available</th>
-                      <th className="text-left p-4 text-sm font-medium">Nearest Expiry</th>
+                      <th className="text-left p-4 text-sm font-medium">Unit Price / Expiry</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -306,6 +312,16 @@ export function ProductsScreen() {
                           </td>
                           <td className="p-4 font-medium">
                             {product.name}
+                          </td>
+                          <td className="p-4 text-sm text-muted-foreground">
+                            {product.unitOfMeasurement || "pcs"}
+                          </td>
+                          <td className="p-4">
+                            {product.trackByBatch === false ? (
+                              <Badge variant="outline" className="text-xs">Item</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">Batch</Badge>
+                            )}
                           </td>
                           <td className="p-4 text-sm">
                             {product.category ? (
@@ -343,7 +359,13 @@ export function ProductsScreen() {
                             </span>
                           </td>
                           <td className="p-4 text-sm">
-                            {nearestExpiry ? (
+                            {product.trackByBatch === false ? (
+                              product.unitPrice != null ? (
+                                <span className="font-medium">{format(product.unitPrice)}</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )
+                            ) : nearestExpiry ? (
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <div>
@@ -373,7 +395,7 @@ export function ProductsScreen() {
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="text-muted-foreground">—</span>
                             )}
                           </td>
                           <td className="p-4">

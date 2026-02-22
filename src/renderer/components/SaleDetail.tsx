@@ -83,7 +83,7 @@ interface Sale {
 export function SaleDetail() {
   const { companyId, saleId } = useParams<{ companyId: string; saleId: string }>();
   const navigate = useNavigate();
-  const { format } = useCompanyCurrency(companyId);
+  const { format, currency } = useCompanyCurrency(companyId);
   const [sale, setSale] = useState<Sale | null>(null);
   const [company, setCompany] = useState<{ name: string; address?: string; phone?: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -994,6 +994,7 @@ export function SaleDetail() {
                 type: 'sale',
                 documentNumber: sale.saleNumber,
                 date: sale.saleDate,
+                currency,
                 company: company && company.name ? company : undefined,
                 customerOrVendor: {
                   name: sale.customer?.name || 'Walk-in Customer',

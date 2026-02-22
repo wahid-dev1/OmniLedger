@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, ArrowLeft, Loader2 } from "lucide-react";
+import { Package, ArrowLeft, Loader2, DollarSign, Layers } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AppLayout } from "./AppLayout";
 
 interface Vendor {
@@ -13,12 +16,18 @@ interface Vendor {
   name: string;
 }
 
+const UNIT_OPTIONS = ["pcs", "kg", "g", "liter", "ml", "box", "pack", "dozen", "meter", "sqm", "bottle", "can"];
+
 interface ProductFormData {
   sku: string;
   name: string;
   description: string;
   category: string;
   vendorId: string;
+  trackByBatch: boolean;
+  unitOfMeasurement: string;
+  unitPrice: string;
+  quantity: string;
 }
 
 export function ProductForm() {
@@ -36,6 +45,10 @@ export function ProductForm() {
     description: "",
     category: "",
     vendorId: "",
+    trackByBatch: true,
+    unitOfMeasurement: "pcs",
+    unitPrice: "",
+    quantity: "",
   });
 
   useEffect(() => {
@@ -74,6 +87,10 @@ export function ProductForm() {
           description: product.description || "",
           category: product.category || "",
           vendorId: product.vendor?.id || "",
+          trackByBatch: product.trackByBatch !== false,
+          unitOfMeasurement: product.unitOfMeasurement || "pcs",
+          unitPrice: product.unitPrice != null ? String(product.unitPrice) : "",
+          quantity: product.quantity != null ? String(product.quantity) : "",
         });
       } else {
         setError(result?.error || "Failed to load product");
@@ -96,7 +113,7 @@ export function ProductForm() {
     "Other",
   ];
 
-  const handleChange = (field: keyof ProductFormData, value: string) => {
+  const handleChange = (field: keyof ProductFormData, value: string | boolean | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setError(null);
   };
@@ -127,6 +144,10 @@ export function ProductForm() {
           description: formData.description.trim() || undefined,
           category: formData.category || undefined,
           vendorId: formData.vendorId || undefined,
+          trackByBatch: formData.trackByBatch,
+          unitOfMeasurement: formData.unitOfMeasurement || undefined,
+          unitPrice: !formData.trackByBatch && formData.unitPrice.trim()
+            ? parseFloat(formData.unitPrice) : undefined,
         });
       } else {
         // Create new product
@@ -137,6 +158,14 @@ export function ProductForm() {
           description: formData.description.trim() || undefined,
           category: formData.category || undefined,
           vendorId: formData.vendorId || undefined,
+          trackByBatch: formData.trackByBatch,
+          unitOfMeasurement: formData.unitOfMeasurement || undefined,
+          unitPrice: !formData.trackByBatch && formData.unitPrice.trim()
+            ? parseFloat(formData.unitPrice) : undefined,
+          quantity: !formData.trackByBatch && formData.quantity.trim()
+            ? parseInt(formData.quantity, 10) : undefined,
+          availableQuantity: !formData.trackByBatch && formData.quantity.trim()
+            ? parseInt(formData.quantity, 10) : undefined,
         });
       }
 
@@ -265,6 +294,101 @@ export function ProductForm() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="unitOfMeasurement">Unit of measurement</Label>
+                  <Select
+                    value={formData.unitOfMeasurement || "pcs"}
+                    onValueChange={(value) => handleChange("unitOfMeasurement", value)}
+                    disabled={loading || loadingProduct}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {UNIT_OPTIONS.map((u) => (
+                        <SelectItem key={u} value={u}>
+                          {u}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    How this product is measured (e.g., pcs, kg, liter)
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="trackByBatch">Inventory tracking</Label>
+                      <Badge variant={formData.trackByBatch ? "secondary" : "outline"} className="text-xs">
+                        {formData.trackByBatch ? "Batch" : "Item"}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {formData.trackByBatch
+                        ? "Stock tracked per batch (expiry, manufacturing dates)."
+                        : "Stock tracked at product level. Requires unit price for sales."}
+                    </p>
+                  </div>
+                  <Switch
+                    id="trackByBatch"
+                    checked={formData.trackByBatch}
+                    onCheckedChange={(checked) => handleChange("trackByBatch", !!checked)}
+                    disabled={loading || loadingProduct}
+                  />
+                </div>
+
+                {!formData.trackByBatch && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
+                    <Alert className="border-primary/30 bg-background">
+                      <Layers className="h-4 w-4" />
+                      <AlertDescription>
+                        Item-level products need a default selling price and optional initial stock.
+                      </AlertDescription>
+                    </Alert>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="unitPrice" className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          Unit price (retail)
+                        </Label>
+                        <Input
+                          id="unitPrice"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="e.g., 29.99"
+                          value={formData.unitPrice}
+                          onChange={(e) => handleChange("unitPrice", e.target.value)}
+                          disabled={loading || loadingProduct}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Default selling price (pre-filled in sales)
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="quantity" className="flex items-center gap-2">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          Initial stock ({formData.unitOfMeasurement || "pcs"})
+                        </Label>
+                        <Input
+                          id="quantity"
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={formData.quantity}
+                          onChange={(e) => handleChange("quantity", e.target.value)}
+                          disabled={loading || loadingProduct}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Optional; add more via purchases
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="vendorId">Vendor</Label>

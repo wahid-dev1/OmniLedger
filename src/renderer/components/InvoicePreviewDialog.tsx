@@ -123,8 +123,8 @@ export function InvoicePreviewDialog({
                         <td className="p-3 text-sm">{item.name}</td>
                         <td className="p-3 text-sm">{item.batchNumber || '-'}</td>
                         <td className="p-3 text-sm text-center">{item.quantity}</td>
-                        <td className="p-3 text-sm text-right">${item.unitPrice.toFixed(2)}</td>
-                        <td className="p-3 text-sm text-right font-semibold">${item.totalPrice.toFixed(2)}</td>
+                        <td className="p-3 text-sm text-right">{format(item.unitPrice)}</td>
+                        <td className="p-3 text-sm text-right font-semibold">{format(item.totalPrice)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -163,7 +163,7 @@ export function InvoicePreviewDialog({
                 {remainingBalance !== undefined && remainingBalance > 0 && (
                   <div className="flex justify-between pt-2">
                     <span className="text-sm text-orange-600">Balance Due:</span>
-                    <span className="text-sm font-semibold text-orange-600">${remainingBalance.toFixed(2)}</span>
+                    <span className="text-sm font-semibold text-orange-600">{format(remainingBalance)}</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-2 border-t">

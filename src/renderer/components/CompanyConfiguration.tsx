@@ -4,7 +4,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAppStore } from "@/stores/useAppStore";
+import { DEFAULT_CURRENCY } from "@shared/constants";
+
+const CURRENCIES = [
+  { code: "PKR", label: "Pakistani Rupee (PKR)" },
+  { code: "USD", label: "US Dollar (USD)" },
+  { code: "EUR", label: "Euro (EUR)" },
+  { code: "GBP", label: "British Pound (GBP)" },
+  { code: "INR", label: "Indian Rupee (INR)" },
+  { code: "AED", label: "UAE Dirham (AED)" },
+  { code: "SAR", label: "Saudi Riyal (SAR)" },
+];
 
 export function CompanyConfiguration() {
   const navigate = useNavigate();
@@ -15,6 +33,7 @@ export function CompanyConfiguration() {
     address: "",
     phone: "",
     email: "",
+    currency: DEFAULT_CURRENCY,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,6 +54,7 @@ export function CompanyConfiguration() {
         address: formData.address.trim() || undefined,
         phone: formData.phone.trim() || undefined,
         email: formData.email.trim() || undefined,
+        currency: formData.currency || DEFAULT_CURRENCY,
       });
 
       if (result?.success && result?.data) {
@@ -140,6 +160,25 @@ export function CompanyConfiguration() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Select
+                  value={formData.currency}
+                  onValueChange={(value) => handleChange("currency", value)}
+                >
+                  <SelectTrigger id="currency">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex justify-end gap-4">
                 <Button
                   type="button"
@@ -152,7 +191,13 @@ export function CompanyConfiguration() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setFormData({ name: "", address: "", phone: "", email: "" });
+                    setFormData({
+                      name: "",
+                      address: "",
+                      phone: "",
+                      email: "",
+                      currency: DEFAULT_CURRENCY,
+                    });
                   }}
                 >
                   Clear

@@ -93,7 +93,7 @@ export function CustomerStatementPreviewDialog({
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Total Amount</p>
-                  <p className="text-lg font-bold">${summary.totalAmount.toFixed(2)}</p>
+                  <p className="text-lg font-bold">{format(summary.totalAmount)}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Total Paid</p>

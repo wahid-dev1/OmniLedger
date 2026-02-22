@@ -12,14 +12,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { ShoppingCart, ArrowLeft, Loader2, Plus, X, Trash2, Package } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Loader2, Plus, Trash2, Package, Layers, Box } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { AppLayout } from "./AppLayout";
 
 interface Product {
   id: string;
   sku: string;
   name: string;
-  unitPrice: number | string;
+  unitPrice?: number | string;
+  unitOfMeasurement?: string | null;
+  trackByBatch?: boolean;
+  availableQuantity?: number;
   batches: Batch[];
 }
 
@@ -118,17 +122,20 @@ export function SalesForm() {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
 
-    // Start with 0 unit price - user must enter it manually
-    // Prices are tracked at batch level, not product level
+    // Item-tracked: use product.unitPrice; batch-tracked: 0 until batch selected
+    const defaultUnitPrice = product.trackByBatch === false && product.unitPrice != null
+      ? (typeof product.unitPrice === 'number' ? product.unitPrice : parseFloat(String(product.unitPrice)) || 0)
+      : 0;
+
     const updatedItems = [...saleItems];
     updatedItems[index] = {
       ...updatedItems[index],
       productId,
       batchId: "",
-      unitPrice: 0,
+      unitPrice: defaultUnitPrice,
       productName: product.name,
       batchNumber: "",
-      totalPrice: 0,
+      totalPrice: updatedItems[index].quantity * defaultUnitPrice,
     };
     setSaleItems(updatedItems);
   };
@@ -156,12 +163,12 @@ export function SalesForm() {
   const handleQuantityChange = (index: number, quantity: number) => {
     const item = saleItems[index];
     const product = products.find((p) => p.id === item.productId);
-    if (!product || !item.batchId) return;
+    if (!product) return;
 
-    const batch = product.batches.find((b) => b.id === item.batchId);
-    if (!batch) return;
-
-    const qty = Math.min(Math.max(1, quantity), batch.availableQuantity);
+    const maxQty = product.trackByBatch === false
+      ? (product.availableQuantity ?? 0)
+      : (product.batches?.find((b) => b.id === item.batchId)?.availableQuantity ?? 0);
+    const qty = Math.min(Math.max(1, quantity), maxQty || 999999);
 
     const updatedItems = [...saleItems];
     updatedItems[index] = {
@@ -185,8 +192,18 @@ export function SalesForm() {
   const getAvailableBatches = (productId: string): Batch[] => {
     const product = products.find((p) => p.id === productId);
     if (!product) return [];
-    return product.batches.filter((b) => b.availableQuantity > 0);
+    if (product.trackByBatch === false) return []; // Item-tracked: no batches
+    return (product.batches || []).filter((b) => b.availableQuantity > 0);
   };
+
+  const getAvailableStock = (product: Product): number => {
+    if (product.trackByBatch === false) {
+      return product.availableQuantity ?? 0;
+    }
+    return (product.batches || []).reduce((sum, b) => sum + (b.availableQuantity || 0), 0);
+  };
+
+  const hasStock = (product: Product): boolean => getAvailableStock(product) > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,22 +217,32 @@ export function SalesForm() {
 
     for (let i = 0; i < saleItems.length; i++) {
       const item = saleItems[i];
-      if (!item.productId || !item.batchId) {
-        setError(`Item ${i + 1}: Please select both product and batch`);
+      if (!item.productId) {
+        setError(`Item ${i + 1}: Please select a product`);
+        return;
+      }
+      const product = products.find((p) => p.id === item.productId);
+      if (!product) continue;
+      if (product.trackByBatch !== false && !item.batchId) {
+        setError(`Item ${i + 1}: Please select a batch for ${product.name}`);
         return;
       }
       if (item.quantity <= 0) {
         setError(`Item ${i + 1}: Quantity must be greater than 0`);
         return;
       }
-
-      const product = products.find((p) => p.id === item.productId);
-      const batch = product?.batches.find((b) => b.id === item.batchId);
-      if (batch && item.quantity > batch.availableQuantity) {
-        setError(
-          `Item ${i + 1}: Quantity (${item.quantity}) exceeds available quantity (${batch.availableQuantity})`
-        );
-        return;
+      const available = getAvailableStock(product);
+      if (product.trackByBatch === false) {
+        if (item.quantity > available) {
+          setError(`Item ${i + 1}: Quantity (${item.quantity}) exceeds available (${available})`);
+          return;
+        }
+      } else {
+        const batch = product.batches?.find((b) => b.id === item.batchId);
+        if (batch && item.quantity > batch.availableQuantity) {
+          setError(`Item ${i + 1}: Quantity (${item.quantity}) exceeds available (${batch.availableQuantity})`);
+          return;
+        }
       }
     }
 
@@ -227,7 +254,7 @@ export function SalesForm() {
         customerId: selectedCustomerId && selectedCustomerId !== "none" ? selectedCustomerId : undefined,
         items: saleItems.map((item) => ({
           productId: item.productId,
-          batchId: item.batchId,
+          batchId: item.batchId || null,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
         })),
@@ -336,8 +363,9 @@ export function SalesForm() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Sale Items</CardTitle>
-                    <CardDescription>
-                      Add products with batch selection for accurate inventory tracking
+                    <CardDescription className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="text-xs">Batch</Badge> products need batch selection.
+                      <Badge variant="outline" className="text-xs">Item</Badge> products use product stock & price.
                     </CardDescription>
                   </div>
                   <Button type="button" onClick={handleAddItem} disabled={loading}>
@@ -361,8 +389,13 @@ export function SalesForm() {
                 ) : (
                   <div className="space-y-4">
                     {saleItems.map((item, index) => {
+                      const selectedProduct = products.find((p) => p.id === item.productId);
+                      const isItemTracked = selectedProduct?.trackByBatch === false;
                       const availableBatches = getAvailableBatches(item.productId);
                       const selectedBatch = availableBatches.find((b) => b.id === item.batchId);
+                      const maxQty = isItemTracked
+                        ? (selectedProduct?.availableQuantity ?? 0)
+                        : (selectedBatch?.availableQuantity ?? 0);
 
                       return (
                         <Card key={index} className="border-2">
@@ -394,62 +427,100 @@ export function SalesForm() {
                                   placeholder="Select product"
                                   searchPlaceholder="Search products..."
                                 >
-                                  {products.map((product) => (
+                                  {products.filter(hasStock).map((product) => (
                                     <SelectItem key={product.id} value={product.id}>
-                                      {product.name} ({product.sku})
+                                      <span className="flex items-center gap-2">
+                                        {product.name} ({product.sku})
+                                        {product.trackByBatch === false ? (
+                                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                            Item · {product.availableQuantity ?? 0} {(product.unitOfMeasurement || "pcs")}
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                            Batch
+                                          </Badge>
+                                        )}
+                                      </span>
                                     </SelectItem>
                                   ))}
                                 </SearchableSelect>
                               </div>
 
-                              {/* Batch Selection */}
-                              <div className="space-y-2">
-                                <Label>
-                                  Batch <span className="text-red-500">*</span>
-                                </Label>
-                                <SearchableSelect
-                                  value={item.batchId}
-                                  onValueChange={(value) => handleBatchChange(index, value)}
-                                  disabled={loading || !item.productId}
-                                  placeholder="Select batch"
-                                  searchPlaceholder="Search batches..."
-                                >
-                                  {availableBatches.length === 0 ? (
-                                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                                      No available batches
-                                    </div>
-                                  ) : (
-                                    availableBatches.map((batch) => (
-                                      <SelectItem key={batch.id} value={batch.id}>
-                                        {batch.batchNumber} (Available: {batch.availableQuantity}
-                                        {batch.expiryDate &&
-                                          `, Exp: ${new Date(batch.expiryDate).toLocaleDateString()}`}
-                                        )
-                                      </SelectItem>
-                                    ))
+                              {/* Batch Selection - only for batch-tracked products */}
+                              {!isItemTracked && (
+                                <div className="space-y-2">
+                                  <Label>
+                                    Batch <span className="text-red-500">*</span>
+                                  </Label>
+                                  <SearchableSelect
+                                    value={item.batchId}
+                                    onValueChange={(value) => handleBatchChange(index, value)}
+                                    disabled={loading || !item.productId}
+                                    placeholder="Select batch"
+                                    searchPlaceholder="Search batches..."
+                                  >
+                                    {availableBatches.length === 0 ? (
+                                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                        No available batches
+                                      </div>
+                                    ) : (
+                                      availableBatches.map((batch) => (
+                                        <SelectItem key={batch.id} value={batch.id}>
+                                          {batch.batchNumber} (Available: {batch.availableQuantity}
+                                          {batch.expiryDate &&
+                                            `, Exp: ${new Date(batch.expiryDate).toLocaleDateString()}`}
+                                          )
+                                        </SelectItem>
+                                      ))
+                                    )}
+                                  </SearchableSelect>
+                                  {selectedBatch && (
+                                    <p className="text-xs text-muted-foreground">
+                                      Available: {selectedBatch.availableQuantity} units
+                                    </p>
                                   )}
-                                </SearchableSelect>
-                                {selectedBatch && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Available: {selectedBatch.availableQuantity} units
-                                  </p>
-                                )}
-                              </div>
+                                </div>
+                              )}
+                              {isItemTracked && selectedProduct && (
+                                <div className="space-y-2">
+                                  <Label className="flex items-center gap-2">
+                                    <Layers className="h-4 w-4 text-muted-foreground" />
+                                    Available stock
+                                  </Label>
+                                  <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                                    <Box className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium">{selectedProduct.availableQuantity ?? 0}</span>
+                                    <span className="text-sm text-muted-foreground">{selectedProduct.unitOfMeasurement || "pcs"}</span>
+                                  </div>
+                                  {selectedProduct.unitPrice != null && (
+                                    <p className="text-xs text-muted-foreground">
+                                      ${typeof selectedProduct.unitPrice === "number"
+                                        ? selectedProduct.unitPrice.toFixed(2)
+                                        : parseFloat(String(selectedProduct.unitPrice)).toFixed(2)} per {selectedProduct.unitOfMeasurement || "pcs"} from product
+                                    </p>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Quantity */}
                               <div className="space-y-2">
                                 <Label>
                                   Quantity <span className="text-red-500">*</span>
+                                  {selectedProduct && (
+                                    <span className="text-muted-foreground font-normal ml-1">
+                                      ({selectedProduct.unitOfMeasurement || "pcs"})
+                                    </span>
+                                  )}
                                 </Label>
                                 <Input
                                   type="number"
                                   min="1"
-                                  max={selectedBatch?.availableQuantity || 0}
+                                  max={maxQty || 999999}
                                   value={item.quantity}
                                   onChange={(e) =>
                                     handleQuantityChange(index, parseInt(e.target.value) || 1)
                                   }
-                                  disabled={loading || !item.batchId}
+                                  disabled={loading || !item.productId}
                                   required
                                 />
                               </div>
@@ -459,17 +530,21 @@ export function SalesForm() {
                                 <Label>
                                   Unit Price <span className="text-red-500">*</span>
                                 </Label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={item.unitPrice}
-                                  onChange={(e) =>
-                                    handleUnitPriceChange(index, parseFloat(e.target.value) || 0)
-                                  }
-                                  disabled={loading}
-                                  required
-                                />
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={item.unitPrice}
+                                    onChange={(e) =>
+                                      handleUnitPriceChange(index, parseFloat(e.target.value) || 0)
+                                    }
+                                    disabled={loading}
+                                    required
+                                    className="pl-6"
+                                  />
+                                </div>
                               </div>
                             </div>
 

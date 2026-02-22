@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Boxes, Tag, ArrowLeft, Plus, Calendar, Loader2, Edit, Trash2, Search, Filter, X } from "lucide-react";
+import { Package, Boxes, Tag, ArrowLeft, Plus, Calendar, Loader2, Edit, Trash2, Search, Filter, X, Layers, DollarSign, ShoppingBag } from "lucide-react";
 import { AppLayout } from "./AppLayout";
 import { useCompanyCurrency } from "../hooks/useCompanyCurrency";
+import { Badge } from "@/components/ui/badge";
 
 interface Batch {
   id: string;
@@ -24,6 +25,11 @@ interface Product {
   name: string;
   description?: string;
   category?: string;
+  trackByBatch?: boolean;
+  unitOfMeasurement?: string | null;
+  unitPrice?: number | string | null;
+  quantity?: number;
+  availableQuantity?: number;
   vendor?: {
     id: string;
     name: string;
@@ -177,6 +183,11 @@ export function ProductDetail() {
     );
   }
 
+  const isItemTracked = product.trackByBatch === false;
+  const availableStock = product.availableQuantity ?? 0;
+  const totalStock = product.quantity ?? 0;
+  const uom = product.unitOfMeasurement || "pcs";
+
   return (
     <AppLayout>
       <div className="min-h-screen bg-background p-8">
@@ -192,10 +203,15 @@ export function ProductDetail() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-3xl font-bold flex items-center gap-3">
-                  <Package className="h-8 w-8" />
-                  {product.name}
-                </h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-bold flex items-center gap-3">
+                    <Package className="h-8 w-8" />
+                    {product.name}
+                  </h1>
+                  <Badge variant={isItemTracked ? "outline" : "secondary"} className="text-xs">
+                    {isItemTracked ? "Item" : "Batch"}
+                  </Badge>
+                </div>
                 <p className="text-muted-foreground mt-1">
                   SKU: {product.sku}
                 </p>
@@ -229,16 +245,25 @@ export function ProductDetail() {
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Product
               </Button>
-              <Button
-                onClick={() =>
-                  navigate(`/company/${companyId}/products/${productId}/batches/new`, {
-                    state: { productId },
-                  })
-                }
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Batch
-              </Button>
+              {isItemTracked ? (
+                <Button
+                  onClick={() => navigate(`/company/${companyId}/purchases/new`, { state: { preselectedProductId: productId } })}
+                >
+                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  Record Purchase
+                </Button>
+              ) : (
+                <Button
+                  onClick={() =>
+                    navigate(`/company/${companyId}/products/${productId}/batches/new`, {
+                      state: { productId },
+                    })
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Batch
+                </Button>
+              )}
             </div>
           </div>
 
@@ -252,6 +277,10 @@ export function ProductDetail() {
                 <div>
                   <p className="text-sm text-muted-foreground">SKU</p>
                   <p className="font-semibold">{product.sku}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Unit</p>
+                  <p className="font-semibold">{product.unitOfMeasurement || "pcs"}</p>
                 </div>
                 {product.category && (
                   <div>
@@ -268,13 +297,15 @@ export function ProductDetail() {
                     <p className="font-semibold">{product.vendor.name}</p>
                   </div>
                 )}
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Batches</p>
-                  <p className="font-semibold flex items-center gap-2">
-                    <Boxes className="h-4 w-4" />
-                    {batches.length}
-                  </p>
-                </div>
+                {!isItemTracked && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Batches</p>
+                    <p className="font-semibold flex items-center gap-2">
+                      <Boxes className="h-4 w-4" />
+                      {batches.length}
+                    </p>
+                  </div>
+                )}
               </div>
               {product.description && (
                 <div className="mt-4">
@@ -285,7 +316,92 @@ export function ProductDetail() {
             </CardContent>
           </Card>
 
-          {/* Batches */}
+          {/* Item-tracked: Stock overview */}
+          {isItemTracked && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-primary/10 p-3">
+                      <DollarSign className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Unit Price (retail) / {uom}</p>
+                      <p className="text-2xl font-bold">
+                        {product.unitPrice != null
+                          ? format(product.unitPrice)
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-muted p-3">
+                      <Layers className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Stock</p>
+                      <p className="text-2xl font-bold">{totalStock} {uom}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className={`rounded-full p-3 ${availableStock > 0 ? "bg-green-100" : "bg-red-100"}`}>
+                      <Package className={`h-6 w-6 ${availableStock > 0 ? "text-green-600" : "text-red-600"}`} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Available</p>
+                      <p className={`text-2xl font-bold ${availableStock > 0 ? "text-green-600" : "text-red-600"}`}>
+                        {availableStock} {uom}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {isItemTracked && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Layers className="h-5 w-5" />
+                  Item-level Stock
+                </CardTitle>
+                <CardDescription>
+                  Stock is tracked at the product level. Record purchases to add inventory; sales deduct from available stock.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="font-medium">Current stock: {availableStock} {uom}</p>
+                  <p className="text-sm mt-1">
+                    {availableStock === 0
+                      ? "Record a purchase to add inventory."
+                      : "Use sales to deduct stock. Edit product to change unit price."}
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => navigate(`/company/${companyId}/purchases/new`, { state: { preselectedProductId: productId } })}
+                  >
+                    <ShoppingBag className="h-4 w-4 mr-2" />
+                    Record Purchase
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Batches - only for batch-tracked products */}
+          {!isItemTracked && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-semibold flex items-center gap-2">
@@ -520,6 +636,7 @@ export function ProductDetail() {
               </Card>
             )}
           </div>
+          )}
         </div>
       </div>
     </AppLayout>

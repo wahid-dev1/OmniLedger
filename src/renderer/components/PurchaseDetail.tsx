@@ -84,7 +84,7 @@ interface Purchase {
 export function PurchaseDetail() {
   const { companyId, purchaseId } = useParams<{ companyId: string; purchaseId: string }>();
   const navigate = useNavigate();
-  const { format } = useCompanyCurrency(companyId);
+  const { format, currency } = useCompanyCurrency(companyId);
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [company, setCompany] = useState<{ name: string; address?: string; phone?: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -604,8 +604,8 @@ export function PurchaseDetail() {
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <span className="font-semibold">{item.product.name}</span>
-                                <span className="text-sm text-muted-foreground">({item.product.sku})</span>
+                                <span className="font-semibold">{item.product?.name ?? "—"}</span>
+                                <span className="text-sm text-muted-foreground">({item.product?.sku ?? "—"})</span>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
                                 <div>
@@ -671,9 +671,9 @@ export function PurchaseDetail() {
                   : parseFloat(item.totalPrice.toString());
                 
                 return {
-                  sku: item.product.sku,
-                  name: item.product.name,
-                  batchNumber: item.batch.batchNumber,
+                  sku: item.product?.sku ?? "",
+                  name: item.product?.name ?? "",
+                  batchNumber: item.batch?.batchNumber ?? item.batchNumber ?? "—",
                   quantity: item.quantity,
                   unitPrice: unitPrice,
                   totalPrice: totalPrice,
@@ -689,6 +689,7 @@ export function PurchaseDetail() {
                 type: 'purchase',
                 documentNumber: purchase.purchaseNumber,
                 date: purchase.purchaseDate,
+                currency,
                 company: company && company.name ? company : undefined,
                 customerOrVendor: {
                   name: purchase.vendor.name,
@@ -723,9 +724,9 @@ export function PurchaseDetail() {
                 : parseFloat(item.totalPrice.toString());
               
               return {
-                sku: item.product.sku,
-                name: item.product.name,
-                batchNumber: item.batch.batchNumber,
+                sku: item.product?.sku ?? "",
+                name: item.product?.name ?? "",
+                batchNumber: item.batch?.batchNumber ?? item.batchNumber ?? "—",
                 quantity: item.quantity,
                 unitPrice: unitPrice,
                 totalPrice: totalPrice,
