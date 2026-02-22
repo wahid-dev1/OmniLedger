@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useAppStore } from "@/stores/useAppStore";
 import { DEFAULT_CURRENCY } from "@shared/constants";
+import { AppLayout } from "./AppLayout";
 
 const CURRENCIES = [
   { code: "PKR", label: "Pakistani Rupee (PKR)" },
@@ -26,8 +27,11 @@ const CURRENCIES = [
 
 export function CompanyConfiguration() {
   const navigate = useNavigate();
+  const { companyId } = useParams<{ companyId: string }>();
   const { setCurrentCompany, setError, databaseConfig } = useAppStore();
+  const isEditMode = Boolean(companyId);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingCompany, setLoadingCompany] = useState(isEditMode);
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -35,6 +39,36 @@ export function CompanyConfiguration() {
     email: "",
     currency: DEFAULT_CURRENCY,
   });
+
+  useEffect(() => {
+    if (companyId) {
+      loadCompany();
+    }
+  }, [companyId]);
+
+  const loadCompany = async () => {
+    if (!companyId) return;
+    setLoadingCompany(true);
+    try {
+      const result = await (window as any).electronAPI?.getCompany(companyId);
+      if (result?.success && result.data) {
+        const c = result.data;
+        setFormData({
+          name: c.name || "",
+          address: c.address || "",
+          phone: c.phone || "",
+          email: c.email || "",
+          currency: c.currency || DEFAULT_CURRENCY,
+        });
+      } else {
+        setError(result?.error || "Failed to load company");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to load company");
+    } finally {
+      setLoadingCompany(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,26 +83,29 @@ export function CompanyConfiguration() {
         return;
       }
 
-      const result = await (window as any).electronAPI?.createCompany({
+      const payload = {
         name: formData.name.trim(),
         address: formData.address.trim() || undefined,
         phone: formData.phone.trim() || undefined,
         email: formData.email.trim() || undefined,
         currency: formData.currency || DEFAULT_CURRENCY,
-      });
+      };
+
+      const result = isEditMode
+        ? await (window as any).electronAPI?.updateCompany(companyId!, payload)
+        : await (window as any).electronAPI?.createCompany(payload);
 
       if (result?.success && result?.data) {
         setCurrentCompany(result.data);
-        // Navigate back to splash screen to see the new company
-        navigate("/");
+        navigate(isEditMode ? `/company/${companyId}` : "/");
       } else {
-        setError(result?.error || "Failed to create company");
+        setError(result?.error || (isEditMode ? "Failed to update company" : "Failed to create company"));
       }
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "Failed to create company";
+        error instanceof Error ? error.message : (isEditMode ? "Failed to update company" : "Failed to create company");
       setError(errorMessage);
-      console.error("Error creating company:", error);
+      console.error("Error saving company:", error);
     } finally {
       setIsLoading(false);
     }
@@ -78,8 +115,8 @@ export function CompanyConfiguration() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Check if database is configured
-  if (!databaseConfig) {
+  // Check if database is configured (skip for edit mode - we're already in a company)
+  if (!databaseConfig && !isEditMode) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-2xl mx-auto">
@@ -101,14 +138,26 @@ export function CompanyConfiguration() {
     );
   }
 
-  return (
+  if (loadingCompany) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <p className="text-muted-foreground">Loading company...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const formContent = (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle>New Company Configuration</CardTitle>
+            <CardTitle>{isEditMode ? "Edit Company" : "New Company Configuration"}</CardTitle>
             <CardDescription>
-              Create a new company to start managing your inventory and accounting.
+              {isEditMode
+                ? "Update your company details."
+                : "Create a new company to start managing your inventory and accounting."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -183,7 +232,7 @@ export function CompanyConfiguration() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate(isEditMode ? `/company/${companyId}` : "/")}
                 >
                   Cancel
                 </Button>
@@ -203,7 +252,7 @@ export function CompanyConfiguration() {
                   Clear
                 </Button>
                 <Button type="submit" disabled={isLoading || !formData.name.trim()}>
-                  {isLoading ? "Creating..." : "Create Company"}
+                  {isLoading ? (isEditMode ? "Saving..." : "Creating...") : (isEditMode ? "Save Changes" : "Create Company")}
                 </Button>
               </div>
             </form>
@@ -212,5 +261,7 @@ export function CompanyConfiguration() {
       </div>
     </div>
   );
+
+  return isEditMode ? <AppLayout>{formContent}</AppLayout> : formContent;
 }
 
