@@ -12,6 +12,7 @@ import {
 } from "../services/database-migration.service";
 import { SeedService } from "../services/seed.service";
 import type { DatabaseConfig } from "../shared/types";
+import { DEFAULT_CURRENCY } from "../shared/constants";
 import { SequelizeConfig } from "../database/sequelize.config";
 import { initializeAllModels } from "../database/models/relationships";
 // Import all models
@@ -249,13 +250,17 @@ const initializeDatabaseConnection = async () => {
     defaultSequelize = SequelizeConfig.createSequelize(configToUse);
     initializeAllModels(defaultSequelize);
     
-    // Authenticate and sync
+    // Authenticate
     await defaultSequelize.authenticate();
     console.log(`Database connection established (${configToUse.type}).`);
-    
-    // Sync models to create tables if they don't exist
-    await defaultSequelize.sync({ alter: false, force: false });
-    console.log('Database schema synchronized.');
+
+    // Run migrations (sync + add missing columns like trackByBatch, unitPrice)
+    const migrationResult = await DatabaseMigrationService.runMigrations(configToUse, defaultSequelize);
+    if (!migrationResult.success) {
+      console.warn('Database migrations had issues:', migrationResult.error);
+    } else {
+      console.log('Database schema synchronized.');
+    }
   } catch (error) {
     console.error('Failed to initialize database:', error);
     // If saved config fails, fall back to default SQLite
@@ -268,7 +273,10 @@ const initializeDatabaseConnection = async () => {
         initializeAllModels(defaultSequelize);
         await defaultSequelize.authenticate();
         console.log('Default SQLite connection established.');
-        await defaultSequelize.sync({ alter: false, force: false });
+        const fallbackMigrationResult = await DatabaseMigrationService.runMigrations(fallbackConfig, defaultSequelize);
+        if (!fallbackMigrationResult.success) {
+          console.warn('Database migrations had issues:', fallbackMigrationResult.error);
+        }
         // Clear the saved config since it failed
         activeDbConfig = null;
         saveActiveDbConfig(null);
@@ -282,47 +290,36 @@ const initializeDatabaseConnection = async () => {
 };
 
 // Helper function to generate the next unique transaction number for a company
-// Uses MAX query to find the highest transaction number, then increments
+// Queries without transaction to see all committed rows; uses LENGTH+transactionNumber
+// for correct numeric ordering (TXN-0010 > TXN-0009)
 async function generateNextTransactionNumber(
-  sequelize: any,
+  _sequelize: any,
   companyId: string,
-  transaction?: any,
+  _transaction?: any,
   startNumber: number = 1
 ): Promise<string> {
   const { Transaction } = await import("../database/models/Transaction");
-  
-  try {
-    // Query for the maximum transaction number for this company
-    const result = await sequelize.query(
-      `SELECT MAX(CAST(SUBSTR(transactionNumber, 5) AS INTEGER)) as maxNum 
-       FROM transactions 
-       WHERE companyId = :companyId AND transactionNumber LIKE 'TXN-%'`,
-      {
-        replacements: { companyId },
-        type: sequelize.QueryTypes.SELECT,
-        transaction,
-      }
-    );
 
-    const maxNum = result[0]?.maxNum;
-    const nextNum = maxNum ? maxNum + startNumber : startNumber;
-    
-    return `TXN-${String(nextNum).padStart(4, "0")}`;
-  } catch (error) {
-    // Fallback: if query fails, try finding the last transaction
-    const lastTransaction = await Transaction.findOne({
-      where: { companyId },
-      order: [['transactionNumber', 'DESC']],
-      transaction,
-    });
+  // Query WITHOUT transaction to avoid isolation - we need to see all committed tx numbers
+  const all = await Transaction.findAll({
+    where: {
+      companyId,
+      transactionNumber: { [Op.like]: "TXN-%" },
+    },
+    attributes: ['transactionNumber'],
+  });
 
-    if (lastTransaction) {
-      const lastNum = parseInt(lastTransaction.transactionNumber.split("-")[1] || "0");
-      return `TXN-${String(lastNum + startNumber).padStart(4, "0")}`;
+  let maxNum = 0;
+  for (const row of all) {
+    const match = String(row.transactionNumber || '').match(/TXN-(\d+)/i);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (Number.isFinite(n) && n > maxNum) maxNum = n;
     }
-
-    return `TXN-${String(startNumber).padStart(4, "0")}`;
   }
+
+  const nextNum = maxNum + startNumber;
+  return `TXN-${String(Math.max(1, nextNum)).padStart(4, "0")}`;
 }
 
 // Helper function to update account balance based on transaction
@@ -614,7 +611,7 @@ ipcMain.handle("create-company", async (_event, data: {
         address: data.address?.trim() || undefined,
         phone: data.phone?.trim() || undefined,
         email: data.email?.trim() || undefined,
-        currency: data.currency?.trim() || "PKR",
+        currency: data.currency?.trim() || DEFAULT_CURRENCY,
       });
     });
 
@@ -722,9 +719,10 @@ ipcMain.handle("get-products", async (_event, companyId: string) => {
 
       const productJson = product.toJSON ? product.toJSON() : product;
       const batches = (productJson as any).batches || [];
-      
-      if (batches && batches.length > 0) {
-        // Calculate total and available stock
+      const trackByBatch = (productJson as any).trackByBatch !== false;
+
+      if (trackByBatch && batches && batches.length > 0) {
+        // Batch-tracked: calculate from batches
         batches.forEach((batch: any, batchIndex: number) => {
           const qty = toNumber(batch.quantity);
           const availQty = toNumber(batch.availableQuantity);
@@ -760,6 +758,10 @@ ipcMain.handle("get-products", async (_event, companyId: string) => {
             }
           }
         });
+      } else if (!trackByBatch) {
+        // Item-tracked: use product-level quantity
+        totalStock = toNumber((productJson as any).quantity);
+        availableStock = toNumber((productJson as any).availableQuantity);
       }
 
       if (index === 0) {
@@ -791,6 +793,9 @@ ipcMain.handle("get-products", async (_event, companyId: string) => {
         updatedAt: productJson.updatedAt instanceof Date 
           ? productJson.updatedAt.toISOString() 
           : String(productJson.updatedAt),
+        trackByBatch: Boolean(trackByBatch),
+        unitOfMeasurement: (productJson as any).unitOfMeasurement ?? null,
+        unitPrice: (productJson as any).unitPrice != null ? Number((productJson as any).unitPrice) : null,
         // Add our calculated inventory fields explicitly as plain types
         totalStock: Number(totalStock),
         availableStock: Number(availableStock),
@@ -2243,7 +2248,9 @@ ipcMain.handle("delete-area", async (_event, areaId: string) => {
   }
 });
 
-// Get products with their available batches for a company
+// Get products with their available batches (or item-level stock) for a company
+// Batch-tracked: include batches with availableQuantity > 0
+// Item-tracked: batches empty, stock in product.availableQuantity
 ipcMain.handle("get-products-with-batches", async (_event, companyId: string) => {
   try {
     const products = await Product.findAll({
@@ -2252,10 +2259,8 @@ ipcMain.handle("get-products-with-batches", async (_event, companyId: string) =>
         {
           model: Batch,
           as: 'batches',
-          where: {
-            availableQuantity: { [Op.gt]: 0 }, // Only batches with available stock
-          },
-          order: [['expiryDate', 'ASC']], // FIFO: oldest expiry first
+          where: { availableQuantity: { [Op.gt]: 0 } },
+          order: [['expiryDate', 'ASC']],
           required: false,
         },
       ],
@@ -2278,7 +2283,7 @@ ipcMain.handle("create-sale", async (_event, data: {
   paymentType?: string;
   items: Array<{
     productId: string;
-    batchId: string;
+    batchId?: string | null; // null for item-tracked products
     quantity: number;
     unitPrice: number;
   }>;
@@ -2296,22 +2301,35 @@ ipcMain.handle("create-sale", async (_event, data: {
       saleNumber = `SALE-${String(lastNum + 1).padStart(4, "0")}`;
     }
 
-    // Validate all batches have sufficient quantity
+    // Validate stock: batch-tracked uses batch, item-tracked uses product
     for (const item of data.items) {
-      const batch = await Batch.findByPk(item.batchId);
-
-      if (!batch) {
-        return {
-          success: false,
-          error: `Batch not found for item`,
-        };
+      const product = await Product.findByPk(item.productId);
+      if (!product) {
+        return { success: false, error: `Product not found for item` };
       }
-
-      if (batch.availableQuantity < item.quantity) {
-        return {
-          success: false,
-          error: `Insufficient stock for batch ${batch.batchNumber}. Available: ${batch.availableQuantity}, Requested: ${item.quantity}`,
-        };
+      const productJson = product.toJSON() as { trackByBatch?: boolean; availableQuantity?: number };
+      if (productJson.trackByBatch) {
+        if (!item.batchId) {
+          return { success: false, error: `Product ${product.name} requires batch selection` };
+        }
+        const batch = await Batch.findByPk(item.batchId);
+        if (!batch) {
+          return { success: false, error: `Batch not found for item` };
+        }
+        if ((batch.availableQuantity || 0) < item.quantity) {
+          return {
+            success: false,
+            error: `Insufficient stock for batch ${batch.batchNumber}. Available: ${batch.availableQuantity}, Requested: ${item.quantity}`,
+          };
+        }
+      } else {
+        const avail = typeof productJson.availableQuantity === 'number' ? productJson.availableQuantity : 0;
+        if (avail < item.quantity) {
+          return {
+            success: false,
+            error: `Insufficient stock for ${product.name}. Available: ${avail}, Requested: ${item.quantity}`,
+          };
+        }
       }
     }
 
@@ -2345,7 +2363,7 @@ ipcMain.handle("create-sale", async (_event, data: {
           SaleItem.create({
             saleId: sale.id,
             productId: item.productId,
-            batchId: item.batchId,
+            batchId: item.batchId || null,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             totalPrice: item.unitPrice * item.quantity,
@@ -2353,12 +2371,21 @@ ipcMain.handle("create-sale", async (_event, data: {
         )
       );
 
-      // Deduct stock from batches
+      // Deduct stock: from batch or from product (item-tracked)
       for (const item of data.items) {
-        const batch = await Batch.findByPk(item.batchId, { transaction: tx });
-        if (batch) {
-          await batch.update({
-            availableQuantity: (batch.availableQuantity || 0) - item.quantity,
+        const product = await Product.findByPk(item.productId, { transaction: tx });
+        if (!product) continue;
+        const productJson = product.toJSON() as { trackByBatch?: boolean };
+        if (productJson.trackByBatch && item.batchId) {
+          const batch = await Batch.findByPk(item.batchId, { transaction: tx });
+          if (batch) {
+            await batch.update({
+              availableQuantity: (batch.availableQuantity || 0) - item.quantity,
+            }, { transaction: tx });
+          }
+        } else {
+          await product.update({
+            availableQuantity: Math.max(0, (product.availableQuantity || 0) - item.quantity),
           }, { transaction: tx });
         }
       }
@@ -2614,6 +2641,11 @@ ipcMain.handle("create-product", async (_event, data: {
   description?: string;
   category?: string;
   vendorId?: string;
+  trackByBatch?: boolean;
+  unitOfMeasurement?: string | null;
+  unitPrice?: number;
+  quantity?: number;
+  availableQuantity?: number;
 }) => {
   try {
     // Check if SKU already exists for this company
@@ -2638,6 +2670,11 @@ ipcMain.handle("create-product", async (_event, data: {
       description: data.description || null,
       category: data.category || null,
       vendorId: data.vendorId || null,
+      trackByBatch: data.trackByBatch !== false,
+      unitOfMeasurement: data.unitOfMeasurement ?? null,
+      unitPrice: data.unitPrice != null ? data.unitPrice : null,
+      quantity: data.quantity ?? 0,
+      availableQuantity: data.availableQuantity ?? data.quantity ?? 0,
     } as any);
 
     return { success: true, data: serializeForIPC(product) };
@@ -2657,6 +2694,9 @@ ipcMain.handle("update-product", async (_event, productId: string, data: {
   description?: string;
   category?: string;
   vendorId?: string;
+  trackByBatch?: boolean;
+  unitOfMeasurement?: string | null;
+  unitPrice?: number | null;
 }) => {
   try {
     // Check if product exists
@@ -2691,13 +2731,23 @@ ipcMain.handle("update-product", async (_event, productId: string, data: {
     if (!product) {
       return { success: false, error: "Product not found" };
     }
-    const updatedProduct = await product.update({
+    const updateData: Record<string, unknown> = {
       sku: data.sku,
       name: data.name,
       description: data.description || null,
       category: data.category || null,
       vendorId: data.vendorId || null,
-    });
+    };
+    if (data.trackByBatch !== undefined) {
+      updateData.trackByBatch = data.trackByBatch;
+    }
+    if (data.unitPrice !== undefined) {
+      updateData.unitPrice = data.unitPrice;
+    }
+    if (data.unitOfMeasurement !== undefined) {
+      updateData.unitOfMeasurement = data.unitOfMeasurement;
+    }
+    const updatedProduct = await product.update(updateData as any);
 
     // Reload with vendor
     const productWithVendor = await Product.findByPk(updatedProduct.id, {
@@ -3182,7 +3232,7 @@ ipcMain.handle("get-purchase", async (_event, purchaseId: string) => {
   }
 });
 
-// Create a new purchase from vendor (creates batches automatically)
+// Create a new purchase from vendor (creates batches for batch-tracked products, adds to product for item-tracked)
 ipcMain.handle("create-purchase", async (_event, data: {
   companyId: string;
   vendorId: string;
@@ -3192,7 +3242,7 @@ ipcMain.handle("create-purchase", async (_event, data: {
     productId: string;
     quantity: number;
     unitPrice: number;
-    batchNumber: string;
+    batchNumber?: string; // Required for batch-tracked, ignored for item-tracked
     manufacturingDate?: string;
     expiryDate?: string;
   }>;
@@ -3205,7 +3255,7 @@ ipcMain.handle("create-purchase", async (_event, data: {
       return { success: false, error: "Vendor not found" };
     }
 
-    // Validate all products exist
+    // Validate all products exist; for batch-tracked, validate batch number unique
     for (const item of data.items) {
       const product = await Product.findByPk(item.productId);
 
@@ -3216,20 +3266,22 @@ ipcMain.handle("create-purchase", async (_event, data: {
         };
       }
 
-      // Check if batch number already exists for this product
-      const existingBatch = await Batch.findOne({
-        where: {
-          productId: item.productId,
-          companyId: data.companyId,
-          batchNumber: item.batchNumber,
-        },
-      });
-
-      if (existingBatch) {
-        return {
-          success: false,
-          error: `Batch number "${item.batchNumber}" already exists for product ${product.name}`,
-        };
+      const productJson = product.toJSON() as { trackByBatch?: boolean };
+      if (productJson.trackByBatch) {
+        const batchNumber = item.batchNumber || `BATCH-${product.sku}-${Date.now()}`;
+        const existingBatch = await Batch.findOne({
+          where: {
+            productId: item.productId,
+            companyId: data.companyId,
+            batchNumber,
+          },
+        });
+        if (existingBatch) {
+          return {
+            success: false,
+            error: `Batch number "${batchNumber}" already exists for product ${product.name}`,
+          };
+        }
       }
     }
 
@@ -3253,28 +3305,37 @@ ipcMain.handle("create-purchase", async (_event, data: {
 
     // Create purchase with items and batches in a transaction
     const result = await defaultSequelize.transaction(async (tx) => {
-      // First, create all batches
-      const batchPromises = data.items.map(async (item) => {
-        const batch = await Batch.create({
-          productId: item.productId,
-          companyId: data.companyId,
-          batchNumber: item.batchNumber,
-          quantity: item.quantity,
-          availableQuantity: item.quantity, // All purchased quantity is available
-          manufacturingDate: item.manufacturingDate ? new Date(item.manufacturingDate) : null,
-          expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
-          purchasePrice: item.unitPrice,
-        } as any, { transaction: tx });
-        return { batch, item };
-      });
-
-      const batchResults = await Promise.all(batchPromises);
+      // For each item: create batch (if batch-tracked) or add to product (if item-tracked)
+      const itemResults: Array<{ batch: typeof Batch.prototype | null; item: typeof data.items[0]; product: InstanceType<typeof Product> }> = [];
+      for (const item of data.items) {
+        const product = await Product.findByPk(item.productId, { transaction: tx });
+        if (!product) throw new Error(`Product not found: ${item.productId}`);
+        const productJson = product.toJSON() as { trackByBatch?: boolean };
+        let batch: InstanceType<typeof Batch> | null = null;
+        if (productJson.trackByBatch) {
+          batch = await Batch.create({
+            productId: item.productId,
+            companyId: data.companyId,
+            batchNumber: item.batchNumber || `BATCH-${product.sku}-${Date.now()}`,
+            quantity: item.quantity,
+            availableQuantity: item.quantity,
+            manufacturingDate: item.manufacturingDate ? new Date(item.manufacturingDate) : null,
+            expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
+            purchasePrice: item.unitPrice,
+          } as any, { transaction: tx });
+        } else {
+          await product.update({
+            quantity: (product.quantity || 0) + item.quantity,
+            availableQuantity: (product.availableQuantity || 0) + item.quantity,
+          }, { transaction: tx });
+        }
+        itemResults.push({ batch, item, product });
+      }
 
       // For cash/bank payments, set paidAmount = totalAmount initially
-      // For credit, set paidAmount = 0
       const initialPaidAmount = (data.paymentType === "cash" || data.paymentType === "bank") ? totalAmount : 0;
 
-      // Now create purchase
+      // Create purchase
       const purchase = await Purchase.create({
         purchaseNumber,
         companyId: data.companyId,
@@ -3287,17 +3348,17 @@ ipcMain.handle("create-purchase", async (_event, data: {
         purchaseDate: new Date(),
       } as any, { transaction: tx });
 
-      // Create purchase items linked to the batches
+      // Create purchase items (with batchId for batch-tracked, null for item-tracked)
       await Promise.all(
-        batchResults.map(({ batch, item }) =>
+        itemResults.map(({ batch, item }) =>
           PurchaseItem.create({
             purchaseId: purchase.id,
             productId: item.productId,
-            batchId: batch.id,
+            batchId: batch?.id ?? null,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             totalPrice: item.unitPrice * item.quantity,
-            batchNumber: item.batchNumber,
+            batchNumber: batch ? batch.batchNumber : null,
             manufacturingDate: item.manufacturingDate ? new Date(item.manufacturingDate) : null,
             expiryDate: item.expiryDate ? new Date(item.expiryDate) : null,
           } as any, { transaction: tx })
@@ -3418,35 +3479,32 @@ ipcMain.handle("delete-purchase", async (_event, purchaseId: string) => {
 
     // Use transaction to ensure atomicity
     await defaultSequelize.transaction(async (tx) => {
-      // Delete purchase items and their associated batches
       const items = (purchaseJson as any).items || [];
       for (const item of items) {
-        // Delete the batch if it exists
         if (item.batch) {
-          // Check if batch has been used in sales
+          // Batch-tracked: check batch usage, then delete batch
           const batchUsage = await SaleItem.count({
             where: { batchId: item.batch.id },
             transaction: tx,
           });
-
           if (batchUsage > 0) {
             throw new Error(`Cannot delete purchase: Batch ${item.batch.batchNumber} has been used in sales`);
           }
-
           const batch = await Batch.findByPk(item.batch.id, { transaction: tx });
-          if (batch) {
-            await batch.destroy({ transaction: tx });
+          if (batch) await batch.destroy({ transaction: tx });
+        } else {
+          // Item-tracked: reverse product stock
+          const product = await Product.findByPk(item.productId, { transaction: tx });
+          if (product) {
+            const qty = item.quantity || 0;
+            await product.update({
+              quantity: Math.max(0, (product.quantity || 0) - qty),
+              availableQuantity: Math.max(0, (product.availableQuantity || 0) - qty),
+            }, { transaction: tx });
           }
         }
-
-        // Delete purchase item
-        await PurchaseItem.destroy({
-          where: { id: item.id },
-          transaction: tx,
-        });
+        await PurchaseItem.destroy({ where: { id: item.id }, transaction: tx });
       }
-
-      // Delete purchase
       await purchase.destroy({ transaction: tx });
     });
 
@@ -3615,14 +3673,7 @@ ipcMain.handle("add-purchase-payment", async (_event, purchaseId: string, data: 
 ipcMain.handle("set-active-database-config", async (_event, config: DatabaseConfig | null) => {
   try {
     activeDbConfig = config;
-    // Save to file for persistence across app restarts
     saveActiveDbConfig(config);
-    console.log('Active database configuration updated and saved:', config ? {
-      type: config.type,
-      ...(config.type === 'sqlite' 
-        ? { connectionString: config.connectionString }
-        : { host: config.host, database: config.database })
-    } : 'null (using default SQLite)');
     return { success: true };
   } catch (error) {
     console.error('Error setting active database config:', error);
@@ -3652,29 +3703,7 @@ ipcMain.handle("get-active-database-config", async () => {
 
 ipcMain.handle("test-database-connection", async (_event, config: DatabaseConfig) => {
   try {
-    // DEBUG: Log database connection details (including password for troubleshooting)
-    console.log("🔍 [DEBUG] Testing database connection with configuration:");
-    console.log("   Type:", config.type);
-    if (config.type === "sqlite") {
-      console.log("   Connection String:", config.connectionString);
-    } else {
-      console.log("   Host:", config.host);
-      console.log("   Port:", config.port);
-      console.log("   Database:", config.database);
-      console.log("   Username:", config.username);
-      console.log("   Password:", config.password ? "***" + config.password.slice(-3) : "(not set)");
-      console.log("   Full Password (DEBUG):", config.password || "(not set)");
-    }
-    
-    const result = await DatabaseService.testConnection(config);
-    
-    if (result.success) {
-      console.log("✅ [DEBUG] Database connection test successful");
-    } else {
-      console.log("❌ [DEBUG] Database connection test failed:", result.error);
-    }
-    
-    return result;
+    return await DatabaseService.testConnection(config);
   } catch (error) {
     console.error("❌ [DEBUG] Database connection test error:", error);
     return {
@@ -3701,30 +3730,7 @@ ipcMain.handle("check-schema-initialized", async (_event, config: DatabaseConfig
 // Initialize database schema (run migrations if needed)
 ipcMain.handle("initialize-database-schema", async (_event, config: DatabaseConfig) => {
   try {
-    console.log("🔍 [DEBUG] Initializing database schema...");
-    console.log("   Database Type:", config.type);
-    if (config.type !== "sqlite") {
-      console.log("   Host:", config.host);
-      console.log("   Database:", config.database);
-    }
-    
-    const result = await DatabaseService.initializeDatabase(config);
-    
-    if (result.success) {
-      console.log("✅ [DEBUG] Database schema initialization successful");
-      if (result.migrated) {
-        console.log("   Tables were created/synced");
-      } else {
-        console.log("   Tables already existed");
-      }
-      if (result.seeded) {
-        console.log("   Sample data was seeded (new database)");
-      }
-    } else {
-      console.log("❌ [DEBUG] Database schema initialization failed:", result.error);
-    }
-    
-    return result;
+    return await DatabaseService.initializeDatabase(config);
   } catch (error) {
     console.error("❌ [DEBUG] Database schema initialization error:", error);
     return {
