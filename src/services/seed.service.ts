@@ -19,6 +19,7 @@ import { Purchase } from "../database/models/Purchase";
 import { PurchaseItem } from "../database/models/PurchaseItem";
 import { PurchasePayment } from "../database/models/PurchasePayment";
 import { Transaction } from "../database/models/Transaction";
+import { DEFAULT_CURRENCY } from "../shared/constants";
 
 export class SeedService {
   /**
@@ -47,7 +48,7 @@ export class SeedService {
         address: "123 Main Street, City, State 12345",
         phone: "+1-555-0123",
         email: "info@acmeretail.com",
-      currency: "PKR",
+        currency: DEFAULT_CURRENCY,
     } as any);
     const companyData = company.toJSON();
     console.log("✅ Created company:", companyData.name);

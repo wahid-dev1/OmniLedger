@@ -66,18 +66,13 @@ export class SequelizeConfig {
           // Otherwise, resolve from userData directory
           if (dbPath.startsWith('./')) {
             dbPath = dbPath.replace(/^\.\//, '');
-            const resolvedPath = path.join(dataDir, dbPath);
-            console.log(`[SequelizeConfig] Resolved SQLite path (production): ${resolvedPath}`);
-            return resolvedPath;
+            return path.join(dataDir, dbPath);
           } else {
-            const resolvedPath = path.join(userDataPath, dbPath);
-            console.log(`[SequelizeConfig] Resolved SQLite path (production): ${resolvedPath}`);
-            return resolvedPath;
+            return path.join(userDataPath, dbPath);
           }
         }
-      } catch (error) {
+      } catch {
         // App not ready yet, fall through to development resolution
-        console.log('[SequelizeConfig] Electron app not ready, using development path resolution');
       }
     }
     
@@ -97,18 +92,13 @@ export class SequelizeConfig {
         fs.mkdirSync(defaultDataDir, { recursive: true });
       }
       
-      const resolvedPath = dbPath.startsWith('./')
+      return dbPath.startsWith('./')
         ? path.join(defaultDataDir, dbPath.replace(/^\.\//, ''))
         : path.join(defaultDataDir, dbPath);
-      
-      console.log(`[SequelizeConfig] Resolved SQLite path (production fallback): ${resolvedPath}`);
-      return resolvedPath;
     }
     
     // Development mode: resolve relative to current working directory
-    const resolvedPath = path.resolve(process.cwd(), dbPath);
-    console.log(`[SequelizeConfig] Resolved SQLite path (development): ${resolvedPath}`);
-    return resolvedPath;
+    return path.resolve(process.cwd(), dbPath);
   }
 
   /**
@@ -136,20 +126,6 @@ export class SequelizeConfig {
    * Create Sequelize instance based on database configuration
    */
   static createSequelize(config: DatabaseConfig): Sequelize {
-    // DEBUG: Log connection configuration
-    console.log("🔍 [DEBUG] SequelizeConfig.createSequelize - Creating Sequelize instance:");
-    console.log("   Database Type:", config.type);
-    if (config.type === "sqlite") {
-      console.log("   Connection String:", config.connectionString);
-    } else {
-      console.log("   Host:", config.host);
-      console.log("   Port:", config.port);
-      console.log("   Database:", config.database);
-      console.log("   Username:", config.username);
-      console.log("   Password:", config.password ? "***" + config.password.slice(-3) : "(not set)");
-      console.log("   Full Password (DEBUG):", config.password || "(not set)");
-    }
-    
     const sequelizeOptions: Options = {
       logging: process.env.NODE_ENV === 'development' ? console.log : false,
       define: {
@@ -176,8 +152,6 @@ export class SequelizeConfig {
         if (!fs.existsSync(dbDir)) {
           fs.mkdirSync(dbDir, { recursive: true });
         }
-        
-        console.log("   Resolved SQLite path:", dbPath);
         
         // SQLite-specific optimizations to prevent locking issues:
         // 1. WAL mode (Write-Ahead Logging) - allows concurrent reads during writes
@@ -223,24 +197,12 @@ export class SequelizeConfig {
           dialect: 'mysql' as const,
           ...sequelizeOptions,
         };
-        console.log("🔍 [DEBUG] Creating MySQL Sequelize instance with:");
-        console.log("   Database:", config.database);
-        console.log("   Username:", config.username);
-        console.log("   Password:", config.password ? "***" + config.password.slice(-3) : "(not set)");
-        console.log("   Full Password (DEBUG):", config.password || "(not set)");
-        console.log("   Host:", mysqlConfig.host);
-        console.log("   Port:", mysqlConfig.port);
-        console.log("   Connection URL (masked):", `mysql://${config.username}:***@${config.host}:${mysqlConfig.port}/${config.database}`);
-        
-        const sequelize = new Sequelize(
+        return new Sequelize(
           config.database!,
           config.username!,
           config.password!,
           mysqlConfig
         );
-        
-        console.log("✅ [DEBUG] MySQL Sequelize instance created");
-        return sequelize;
       }
 
       case 'mssql': {
@@ -273,24 +235,7 @@ export class SequelizeConfig {
    */
   static async testConnection(sequelize: Sequelize, config?: DatabaseConfig): Promise<boolean> {
     try {
-      // DEBUG: Log authentication attempt
-      if (config) {
-        console.log("🔍 [DEBUG] SequelizeConfig.testConnection - Authenticating:");
-        console.log("   Database Type:", config.type);
-        if (config.type === "sqlite") {
-          console.log("   Connection String:", config.connectionString);
-        } else {
-          console.log("   Host:", config.host);
-          console.log("   Port:", config.port);
-          console.log("   Database:", config.database);
-          console.log("   Username:", config.username);
-          console.log("   Password:", config.password ? "***" + config.password.slice(-3) : "(not set)");
-          console.log("   Full Password (DEBUG):", config.password || "(not set)");
-        }
-      }
-      
       await sequelize.authenticate();
-      console.log("✅ [DEBUG] SequelizeConfig.testConnection - Authentication successful");
       
       // Configure SQLite with PRAGMA settings for better concurrency and locking handling
       if (config?.type === 'sqlite') {
@@ -299,18 +244,10 @@ export class SequelizeConfig {
       
       return true;
     } catch (error) {
-      console.error('❌ [DEBUG] SequelizeConfig.testConnection - Unable to connect to the database:', error);
-      if (config) {
-        console.error('   Attempted connection details:');
-        console.error('   Type:', config.type);
-        if (config.type !== "sqlite") {
-          console.error('   Host:', config.host);
-          console.error('   Port:', config.port);
-          console.error('   Database:', config.database);
-          console.error('   Username:', config.username);
-          console.error('   Password:', config.password ? "***" + config.password.slice(-3) : "(not set)");
-          console.error('   Full Password (DEBUG):', config.password || "(not set)");
-        }
+      // Log error without exposing credentials
+      const errMsg = error instanceof Error ? error.message : 'Connection failed';
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Sequelize] Connection failed:', errMsg);
       }
       return false;
     }
