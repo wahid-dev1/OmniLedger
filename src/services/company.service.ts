@@ -117,6 +117,34 @@ export class CompanyService {
   }
 
   /**
+   * Update an existing company
+   */
+  static async updateCompany(
+    _sequelize: Sequelize,
+    companyId: string,
+    data: {
+      name: string;
+      address?: string;
+      phone?: string;
+      email?: string;
+      currency?: string;
+    }
+  ) {
+    const company = await Company.findByPk(companyId);
+    if (!company) {
+      return null;
+    }
+    await company.update({
+      name: data.name,
+      address: data.address ?? null,
+      phone: data.phone ?? null,
+      email: data.email ?? null,
+      currency: data.currency || DEFAULT_CURRENCY,
+    });
+    return company;
+  }
+
+  /**
    * Create a new company
    */
   static async createCompany(

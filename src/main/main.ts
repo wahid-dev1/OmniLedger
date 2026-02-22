@@ -625,6 +625,46 @@ ipcMain.handle("create-company", async (_event, data: {
   }
 });
 
+// Update an existing company
+ipcMain.handle("update-company", async (_event, companyId: string, data: {
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  currency?: string;
+}) => {
+  try {
+    if (!companyId || !data.name || !data.name.trim()) {
+      return {
+        success: false,
+        error: "Company ID and name are required",
+      };
+    }
+
+    const company = await withConnectionRecovery(async (sequelize) => {
+      return await CompanyService.updateCompany(sequelize, companyId, {
+        name: data.name.trim(),
+        address: data.address?.trim() || undefined,
+        phone: data.phone?.trim() || undefined,
+        email: data.email?.trim() || undefined,
+        currency: data.currency?.trim() || DEFAULT_CURRENCY,
+      });
+    });
+
+    if (!company) {
+      return { success: false, error: "Company not found" };
+    }
+
+    return { success: true, data: serializeForIPC(company) };
+  } catch (error) {
+    console.error("Error updating company:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+});
+
 // Get products for a company with stock information
 ipcMain.handle("get-products", async (_event, companyId: string) => {
   try {
