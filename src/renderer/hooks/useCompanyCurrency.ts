@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/currency";
+import { DEFAULT_CURRENCY } from "@shared/constants";
 
 /**
  * Hook to get company currency and formatting functions
  */
 export function useCompanyCurrency(companyId?: string) {
-  const [currency, setCurrency] = useState<string>("PKR");
+  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY);
 
   useEffect(() => {
     if (companyId) {
@@ -20,8 +21,7 @@ export function useCompanyCurrency(companyId?: string) {
         }
       } catch (error) {
         console.error("Error loading company currency:", error);
-        // Default to PKR on error
-        setCurrency("PKR");
+        setCurrency(DEFAULT_CURRENCY);
       }
     }
   }, [companyId]);

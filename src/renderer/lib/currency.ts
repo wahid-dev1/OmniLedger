@@ -3,6 +3,8 @@
  * Handles currency formatting and symbol conversion
  */
 
+import { DEFAULT_CURRENCY } from "@shared/constants";
+
 // Common currency symbols
 const CURRENCY_SYMBOLS: Record<string, string> = {
   PKR: "Rs",
@@ -30,7 +32,7 @@ export function getCurrencySymbol(currencyCode: string): string {
  */
 export function formatCurrency(
   amount: number | string,
-  currencyCode: string = "PKR",
+  currencyCode: string = DEFAULT_CURRENCY,
   options?: {
     showSymbol?: boolean;
     showCode?: boolean;
@@ -58,7 +60,7 @@ export function formatCurrency(
  */
 export function formatCurrencyCompact(
   amount: number | string,
-  currencyCode: string = "PKR"
+  currencyCode: string = DEFAULT_CURRENCY
 ): string {
   return formatCurrency(amount, currencyCode, { showSymbol: true });
 }

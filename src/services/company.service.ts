@@ -4,6 +4,7 @@
  */
 
 import { Sequelize } from 'sequelize';
+import { DEFAULT_CURRENCY } from '../shared/constants';
 import { Company, User, Product, Batch, Sale, Customer, Vendor, Account, Transaction } from '../database';
 
 export class CompanyService {
@@ -133,7 +134,7 @@ export class CompanyService {
       address: data.address || null,
       phone: data.phone || null,
       email: data.email || null,
-      currency: data.currency || 'PKR',
+      currency: data.currency || DEFAULT_CURRENCY,
     } as any);
   }
 }

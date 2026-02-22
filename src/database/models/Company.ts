@@ -4,6 +4,7 @@
  */
 
 import { DataTypes, Model, Sequelize } from 'sequelize';
+import { DEFAULT_CURRENCY } from '../../shared/constants';
 
 export interface CompanyAttributes {
   id: string;
@@ -53,7 +54,7 @@ export function initializeCompany(sequelize: Sequelize): void {
       },
       currency: {
         type: DataTypes.STRING,
-        defaultValue: 'PKR',
+        defaultValue: DEFAULT_CURRENCY,
         allowNull: false,
       },
       createdAt: {
