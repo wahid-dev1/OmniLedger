@@ -9,11 +9,11 @@ export interface PurchaseItemAttributes {
   id: string;
   purchaseId: string;
   productId: string;
-  batchId: string; // Unique - Each purchase item creates a unique batch
+  batchId?: string | null; // null when product is item-tracked (trackByBatch=false)
   quantity: number;
   unitPrice: number; // Decimal stored as number
   totalPrice: number; // Decimal stored as number
-  batchNumber: string; // Batch number for this purchase
+  batchNumber?: string | null; // Batch number (null/empty for item-tracked products)
   manufacturingDate?: Date | null;
   expiryDate?: Date | null;
   createdAt?: Date;
@@ -24,11 +24,11 @@ export class PurchaseItem extends Model<PurchaseItemAttributes> implements Purch
   public id!: string;
   public purchaseId!: string;
   public productId!: string;
-  public batchId!: string;
+  public batchId?: string | null;
   public quantity!: number;
   public unitPrice!: number;
   public totalPrice!: number;
-  public batchNumber!: string;
+  public batchNumber?: string | null;
   public manufacturingDate?: Date | null;
   public expiryDate?: Date | null;
   public readonly createdAt!: Date;
@@ -63,8 +63,8 @@ export function initializePurchaseItem(sequelize: Sequelize): void {
       },
       batchId: {
         type: DataTypes.UUID,
-        allowNull: false,
-        unique: true,
+        allowNull: true, // null for item-tracked products
+        unique: false, // multiple item-tracked purchases can have null
         references: {
           model: 'batches',
           key: 'id',
@@ -85,7 +85,7 @@ export function initializePurchaseItem(sequelize: Sequelize): void {
       },
       batchNumber: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true, // null/empty for item-tracked products
       },
       manufacturingDate: {
         type: DataTypes.DATE,

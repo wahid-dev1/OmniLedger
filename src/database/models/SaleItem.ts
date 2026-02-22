@@ -8,7 +8,7 @@ export interface SaleItemAttributes {
   id: string;
   saleId: string;
   productId: string;
-  batchId: string;
+  batchId?: string | null; // null when product is item-tracked (trackByBatch=false)
   quantity: number;
   unitPrice: number; // Decimal stored as number
   totalPrice: number; // Decimal stored as number
@@ -20,7 +20,7 @@ export class SaleItem extends Model<SaleItemAttributes> implements SaleItemAttri
   public id!: string;
   public saleId!: string;
   public productId!: string;
-  public batchId!: string;
+  public batchId?: string | null;
   public quantity!: number;
   public unitPrice!: number;
   public totalPrice!: number;
@@ -56,7 +56,7 @@ export function initializeSaleItem(sequelize: Sequelize): void {
       },
       batchId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // null for item-tracked products
         references: {
           model: 'batches',
           key: 'id',

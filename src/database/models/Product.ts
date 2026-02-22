@@ -12,6 +12,11 @@ export interface ProductAttributes {
   description?: string | null;
   category?: string | null;
   vendorId?: string | null; // Optional: Product can be linked to a vendor
+  trackByBatch: boolean; // true = stock tracked per batch, false = stock at item level
+  unitOfMeasurement?: string | null; // e.g. pcs, kg, liter, box
+  unitPrice?: number | null; // Retail/unit price (used when trackByBatch=false for sales)
+  quantity: number; // Item-level stock (used when trackByBatch=false)
+  availableQuantity: number; // Item-level available stock (used when trackByBatch=false)
   companyId: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -24,6 +29,11 @@ export class Product extends Model<ProductAttributes> implements ProductAttribut
   public description?: string | null;
   public category?: string | null;
   public vendorId?: string | null;
+  public trackByBatch!: boolean;
+  public unitOfMeasurement?: string | null;
+  public unitPrice?: number | null;
+  public quantity!: number;
+  public availableQuantity!: number;
   public companyId!: string;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -61,6 +71,29 @@ export function initializeProduct(sequelize: Sequelize): void {
           key: 'id',
         },
         onDelete: 'SET NULL',
+      },
+      trackByBatch: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+      },
+      unitOfMeasurement: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+      unitPrice: {
+        type: DataTypes.DECIMAL(19, 4),
+        allowNull: true,
+      },
+      quantity: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      availableQuantity: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
       },
       companyId: {
         type: DataTypes.UUID,
