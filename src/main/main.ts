@@ -3949,53 +3949,54 @@ ipcMain.handle("quit-and-install", () => {
   }
 });
 
-// Seed database with default company data
-ipcMain.handle("seed-database", async (_event, config: DatabaseConfig, clearExisting: boolean = false) => {
+// Seed database or add sample company (multi-company: creates new without overwriting)
+ipcMain.handle("seed-database", async (_event, config: DatabaseConfig, options?: { category?: string; all?: boolean }) => {
   try {
+    const loadAll = options?.all === true;
+    const category = (options?.category || "grocery") as "grocery" | "pharmacy" | "electronics" | "retail";
+    const validCategories = ["grocery", "pharmacy", "electronics", "retail"];
+    if (!loadAll && !validCategories.includes(category)) {
+      return { success: false, error: `Invalid category: ${category}` };
+    }
+
     console.log("🌱 Starting database seed via IPC...");
-    
-    // Create a new Sequelize instance for this database config
     const sequelize = SequelizeConfig.createSequelize(config);
     initializeAllModels(sequelize);
-    
-    // Configure SQLite if needed
+
     if (config.type === "sqlite") {
       await SequelizeConfig.configureSQLite(sequelize);
     }
-    
-    // Test connection
+
     await sequelize.authenticate();
     console.log("✅ Database connection established for seeding");
-    
-    // Sync database schema (create tables if they don't exist)
+
     console.log("📋 Syncing database schema...");
     await sequelize.sync({ alter: false, force: false });
     console.log("✅ Database schema synchronized");
-    
-    // Check if data already exists
+
     const existingCompany = await Company.findOne();
-    
-    if (existingCompany && clearExisting) {
-      console.log("⚠️  Clearing existing data...");
-      await SeedService.clearDatabase(sequelize);
-    } else if (existingCompany && !clearExisting) {
-      await sequelize.close();
-      return {
-        success: false,
-        error: "Database already contains data. Set clearExisting to true to overwrite.",
-      };
+
+    if (loadAll) {
+      // Add all 4 sample companies (Grocery, Pharmacy, Electronics, Retail)
+      const categories: Array<"grocery" | "pharmacy" | "electronics" | "retail"> = ["grocery", "pharmacy", "electronics", "retail"];
+      for (const cat of categories) {
+        if (!existingCompany && cat === "grocery") {
+          await SeedService.seedDatabase(sequelize);
+        } else {
+          await SeedService.addSampleCompany(sequelize, cat);
+        }
+      }
+    } else if (!existingCompany) {
+      await SeedService.seedDatabase(sequelize);
+    } else {
+      await SeedService.addSampleCompany(sequelize, category);
     }
-    
-    // Seed the database
-    await SeedService.seedDatabase(sequelize);
-    
-    // Close the connection
+
     await sequelize.close();
-    
-    console.log("✅ Database seeding completed successfully");
+    console.log("✅ Sample company(ies) created successfully");
     return {
       success: true,
-      message: "Database seeded successfully with default company data",
+      message: loadAll ? "All sample companies created successfully" : "Sample company created successfully",
     };
   } catch (error) {
     console.error("❌ Error seeding database:", error);

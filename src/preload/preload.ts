@@ -70,8 +70,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("run-database-migrations", config),
   checkMigrationNeeded: (config: any) =>
     ipcRenderer.invoke("check-migration-needed", config),
-  seedDatabase: (config: any, clearExisting?: boolean) =>
-    ipcRenderer.invoke("seed-database", config, clearExisting),
+  seedDatabase: (config: any, options?: { category?: string; all?: boolean }) =>
+    ipcRenderer.invoke("seed-database", config, options),
   restartApp: () => ipcRenderer.invoke("restart-app"),
   // Auto-updater
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
@@ -162,7 +162,7 @@ export type ElectronAPI = {
   initializeDatabaseSchema: (config: any) => Promise<{ success: boolean; migrated?: boolean; seeded?: boolean; error?: string }>;
   runDatabaseMigrations: (config: any) => Promise<{ success: boolean; error?: string }>;
   checkMigrationNeeded: (config: any) => Promise<{ needed: boolean; currentVersion?: string | null; requiredVersion: string; error?: string }>;
-  seedDatabase: (config: any, clearExisting?: boolean) => Promise<{ success: boolean; message?: string; error?: string }>;
+  seedDatabase: (config: any, options?: { category?: string; all?: boolean }) => Promise<{ success: boolean; message?: string; error?: string }>;
   restartApp: () => Promise<{ success: boolean; error?: string }>;
   checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
   downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
