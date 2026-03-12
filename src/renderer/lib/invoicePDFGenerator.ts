@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency } from './currency';
+import { DEFAULT_CURRENCY } from '@shared/constants';
 
 export interface InvoicePDFOptions {
   type: 'sale' | 'purchase';
@@ -42,7 +43,7 @@ export function generateInvoicePDF(options: InvoicePDFOptions): void {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
   let yPosition = margin;
-  const currency = options.currency || 'PKR';
+  const currency = options.currency || DEFAULT_CURRENCY;
 
   // Company Header
   if (options.company && options.company.name) {

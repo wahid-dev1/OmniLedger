@@ -10,7 +10,7 @@ import type { DatabaseConfig } from '../shared/types';
 import { DatabaseService } from './database.service';
 
 // Current schema version - increment this when schema changes
-export const CURRENT_SCHEMA_VERSION = '1.1.0'; // Updated after removing unitPrice from products
+export const CURRENT_SCHEMA_VERSION = '1.5.0'; // test migration + previous changes
 
 export class DatabaseMigrationService {
   /**
@@ -251,7 +251,7 @@ export class DatabaseMigrationService {
       await this.recordSchemaVersion(
         config,
         CURRENT_SCHEMA_VERSION,
-        `Schema migrated to ${CURRENT_SCHEMA_VERSION} - Removed unitPrice from products table`,
+        `Schema migrated to ${CURRENT_SCHEMA_VERSION} - Item vs batch product support`,
         db
       );
 
@@ -463,6 +463,177 @@ export class DatabaseMigrationService {
             console.log("   ℹ️ Products table does not exist yet (will be created without unitPrice)");
           } else {
             console.error("   ⚠️ Error checking products table:", error.message);
+          }
+        }
+      }
+
+      // Migration 1.2.0: Item vs batch product support
+      if (!currentVersion || this.compareVersions(currentVersion, '1.2.0') < 0) {
+        console.log("🔧 Running migration 1.2.0: Adding item vs batch product support...");
+        const queryInterface = sequelize.getQueryInterface();
+        const DataTypes = (await import('sequelize')).DataTypes;
+
+        try {
+          const tableDescription = await queryInterface.describeTable('products');
+          const columns = Object.keys(tableDescription);
+
+          if (!columns.includes('trackByBatch')) {
+            await queryInterface.addColumn('products', 'trackByBatch', {
+              type: DataTypes.BOOLEAN,
+              allowNull: false,
+              defaultValue: true,
+            });
+            console.log("   ✅ Added trackByBatch column");
+          }
+          if (!columns.includes('quantity')) {
+            await queryInterface.addColumn('products', 'quantity', {
+              type: DataTypes.INTEGER,
+              allowNull: false,
+              defaultValue: 0,
+            });
+            console.log("   ✅ Added quantity column");
+          }
+          if (!columns.includes('availableQuantity')) {
+            await queryInterface.addColumn('products', 'availableQuantity', {
+              type: DataTypes.INTEGER,
+              allowNull: false,
+              defaultValue: 0,
+            });
+            console.log("   ✅ Added availableQuantity column");
+          }
+        } catch (addColError: any) {
+          if (addColError.message?.includes('duplicate column') || addColError.message?.includes('already exists')) {
+            console.log("   ℹ️ Product columns may already exist");
+          } else {
+            console.error("   ⚠️ Error adding product columns:", addColError.message);
+          }
+        }
+
+        try {
+          const saleItemsDesc = await queryInterface.describeTable('sale_items');
+          if (saleItemsDesc.batchId && saleItemsDesc.batchId.allowNull === false) {
+            await queryInterface.changeColumn('sale_items', 'batchId', {
+              type: DataTypes.UUID,
+              allowNull: true,
+            });
+            console.log("   ✅ Made sale_items.batchId nullable");
+          }
+        } catch (e: any) {
+          if (config.type === 'sqlite') {
+            console.log("   ℹ️ SQLite: sale_items.batchId change may need alter - model sync will handle new DBs");
+          } else {
+            console.error("   ⚠️ Error changing sale_items.batchId:", e.message);
+          }
+        }
+
+        try {
+          const purchaseItemsDesc = await queryInterface.describeTable('purchase_items');
+          if (purchaseItemsDesc.batchId && purchaseItemsDesc.batchId.allowNull === false) {
+            await queryInterface.changeColumn('purchase_items', 'batchId', {
+              type: DataTypes.UUID,
+              allowNull: true,
+            });
+            console.log("   ✅ Made purchase_items.batchId nullable");
+          }
+          if (purchaseItemsDesc.batchNumber && purchaseItemsDesc.batchNumber.allowNull === false) {
+            await queryInterface.changeColumn('purchase_items', 'batchNumber', {
+              type: DataTypes.STRING,
+              allowNull: true,
+            });
+            console.log("   ✅ Made purchase_items.batchNumber nullable");
+          }
+        } catch (e: any) {
+          if (config.type === 'sqlite') {
+            console.log("   ℹ️ SQLite: purchase_items column changes may need alter - model sync will handle new DBs");
+          } else {
+            console.error("   ⚠️ Error changing purchase_items columns:", e.message);
+          }
+        }
+      }
+
+      // Migration 1.5.0: Test migration - create simple log table (id, message, createdAt)
+      if (!currentVersion || this.compareVersions(currentVersion, '1.5.0') < 0) {
+        console.log("🔧 Running migration 1.5.0: Creating test_migration_log table for verification...");
+        const queryInterface = sequelize.getQueryInterface();
+        const DataTypes = (await import('sequelize')).DataTypes;
+
+        try {
+          await queryInterface.createTable('test_migration_log', {
+            id: {
+              type: DataTypes.UUID,
+              primaryKey: true,
+              defaultValue: DataTypes.UUIDV4,
+            },
+            message: {
+              type: DataTypes.STRING,
+              allowNull: false,
+              defaultValue: 'Migration 1.5.0 applied',
+            },
+            createdAt: {
+              type: DataTypes.DATE,
+              allowNull: false,
+              defaultValue: DataTypes.NOW,
+            },
+          });
+          console.log("   ✅ test_migration_log table created");
+        } catch (error: any) {
+          const msg = error?.message || '';
+          if (msg.includes('already exists') || msg.includes('Duplicate') || msg.includes('duplicate')) {
+            console.log("   ℹ️ test_migration_log table already exists");
+          } else {
+            console.error("   ⚠️ Error creating test_migration_log table:", msg);
+          }
+        }
+      }
+
+      // Migration 1.3.0: Add unitPrice for item-tracked products
+      if (!currentVersion || this.compareVersions(currentVersion, '1.3.0') < 0) {
+        console.log("🔧 Running migration 1.3.0: Adding unitPrice for item-tracked products...");
+        const queryInterface = sequelize.getQueryInterface();
+        const DataTypes = (await import('sequelize')).DataTypes;
+        try {
+          const tableDescription = await queryInterface.describeTable('products');
+          const columns = Object.keys(tableDescription);
+          if (!columns.includes('unitPrice')) {
+            await queryInterface.addColumn('products', 'unitPrice', {
+              type: DataTypes.DECIMAL(19, 4),
+              allowNull: true,
+            });
+            console.log("   ✅ Added unitPrice column to products");
+          } else {
+            console.log("   ℹ️ unitPrice column already exists");
+          }
+        } catch (addErr: any) {
+          if (addErr.message?.includes('duplicate column') || addErr.message?.includes('already exists')) {
+            console.log("   ℹ️ unitPrice column may already exist");
+          } else {
+            console.error("   ⚠️ Error adding unitPrice column:", addErr.message);
+          }
+        }
+      }
+
+      // Migration 1.4.0: Add unitOfMeasurement for products
+      if (!currentVersion || this.compareVersions(currentVersion, '1.4.0') < 0) {
+        console.log("🔧 Running migration 1.4.0: Adding unitOfMeasurement to products...");
+        const queryInterface = sequelize.getQueryInterface();
+        const DataTypes = (await import('sequelize')).DataTypes;
+        try {
+          const tableDescription = await queryInterface.describeTable('products');
+          const columns = Object.keys(tableDescription);
+          if (!columns.includes('unitOfMeasurement')) {
+            await queryInterface.addColumn('products', 'unitOfMeasurement', {
+              type: DataTypes.STRING(50),
+              allowNull: true,
+            });
+            console.log("   ✅ Added unitOfMeasurement column to products");
+          } else {
+            console.log("   ℹ️ unitOfMeasurement column already exists");
+          }
+        } catch (addErr: any) {
+          if (addErr.message?.includes('duplicate column') || addErr.message?.includes('already exists')) {
+            console.log("   ℹ️ unitOfMeasurement column may already exist");
+          } else {
+            console.error("   ⚠️ Error adding unitOfMeasurement column:", addErr.message);
           }
         }
       }

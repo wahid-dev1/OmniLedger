@@ -83,13 +83,13 @@ npm run seed:database -- \
 
 The seed script creates:
 
-- **1 Company**: "Acme Retail Store"
-- **3 Users**: admin, manager, and cashier
-- **8 Products**: Various products with different categories
+- **1 Company**: "Prime Grocery Agency" (Pakistan-based grocery agency)
+- **3 Users**: admin, manager, and cashier (admin@primegrocery.pk, etc.)
+- **16 Products**: Pakistani grocery items (Staples, Pulses, Beverages, Spices, Snacks, Dairy)
 - **Multiple Batches**: 1-3 batches per product with manufacturing and expiry dates
-- **4 Areas**: Downtown, Uptown, Suburbs, Industrial Zone
-- **4 Customers**: Sample customers linked to areas
-- **2 Vendors**: Sample suppliers
+- **4 Areas**: Gulberg III, DHA Phase 5, Model Town, Saddar (Lahore localities)
+- **4 Customers**: Sample customers linked to areas (Pakistani names)
+- **2 Vendors**: Karachi Wholesale Traders, Punjab Grocery Distributors
 - **Chart of Accounts**: Complete chart of accounts (Assets, Liabilities, Equity, Income, Expenses)
 - **Sample Sales**: 5 sample sales with transactions
 - **Sample Purchases**: 3 sample purchases with transactions

@@ -42,6 +42,7 @@ function App() {
             element={<DatabaseConfiguration />}
           />
           <Route path="/company/new" element={<CompanyConfiguration />} />
+          <Route path="/company/:companyId/edit" element={<CompanyConfiguration />} />
           <Route path="/company/:companyId" element={<Dashboard />} />
           <Route path="/company/:companyId/products" element={<ProductsScreen />} />
           <Route path="/company/:companyId/products/new" element={<ProductForm />} />

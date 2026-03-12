@@ -10,6 +10,7 @@ import { Sequelize } from 'sequelize';
 import type { DatabaseConfig } from '../shared/types';
 import { SequelizeConfig } from '../database/sequelize.config';
 import { initializeAllModels } from '../database/models/relationships';
+import { validateConnectionConfig } from './connection-manager';
 
 // Type-safe global variable declaration for connection singleton
 declare global {
@@ -89,39 +90,25 @@ export class DatabaseService {
     success: boolean;
     error?: string;
   }> {
+    const validation = validateConnectionConfig(config);
+    if (!validation.valid) {
+      return {
+        success: false,
+        error: `Missing required fields: ${validation.missing?.join(', ')}`,
+      };
+    }
+
     try {
-      // DEBUG: Log connection attempt details
-      console.log("🔍 [DEBUG] DatabaseService.testConnection - Attempting connection:");
-      console.log("   Config type:", config.type);
-      if (config.type === "sqlite") {
-        console.log("   Connection String:", config.connectionString);
-      } else {
-        console.log("   Host:", config.host);
-        console.log("   Port:", config.port);
-        console.log("   Database:", config.database);
-        console.log("   Username:", config.username);
-        console.log("   Password:", config.password ? "***" + config.password.slice(-3) : "(not set)");
-        console.log("   Full Password (DEBUG):", config.password || "(not set)");
-        console.log("   Connection String (constructed):", 
-          `${config.type}://${config.username}:${config.password ? '***' : ''}@${config.host}:${config.port}/${config.database}`);
-      }
-      
       const sequelize = SequelizeConfig.createSequelize(config);
       const isConnected = await SequelizeConfig.testConnection(sequelize, config);
       await sequelize.close();
       
-      if (isConnected) {
-        console.log("✅ [DEBUG] DatabaseService.testConnection - Connection successful");
-        return { success: true };
-      } else {
-        console.log("❌ [DEBUG] DatabaseService.testConnection - Connection test returned false");
-        return { success: false, error: 'Connection test failed' };
-      }
+      return isConnected 
+        ? { success: true } 
+        : { success: false, error: 'Connection test failed' };
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ [DEBUG] DatabaseService.testConnection - Error:', errorMessage);
-      console.error('   Full error object:', error);
+        error instanceof Error ? error.message : 'Connection failed';
       return { success: false, error: errorMessage };
     }
   }
@@ -149,26 +136,7 @@ export class DatabaseService {
       // Import DatabaseMigrationService dynamically to avoid circular dependencies
       const { DatabaseMigrationService } = await import('./database-migration.service');
 
-      // Check if schema is already initialized using the same sequelize instance
-      // This avoids creating multiple connections
-      let isInitialized = false;
-      try {
-        await sequelize.getQueryInterface().describeTable('companies');
-        isInitialized = true;
-        console.log("✅ [DEBUG] Database schema already initialized");
-      } catch (error) {
-        // Table doesn't exist, schema is not initialized
-        isInitialized = false;
-        console.log("ℹ️ [DEBUG] Database schema not initialized, will create tables");
-      }
-      
-      if (isInitialized) {
-        await sequelize.close();
-        return { success: true, migrated: false };
-      }
-
-      // Schema is not initialized, run migrations (sync tables)
-      console.log("🔍 [DEBUG] Running migrations to create tables...");
+      // Always run migrations - creates tables if needed, adds new columns (trackByBatch, unitPrice, etc.)
       const migrationResult = await DatabaseMigrationService.runMigrations(config, sequelize);
       
       if (!migrationResult.success) {
@@ -188,21 +156,12 @@ export class DatabaseService {
         const existingCompanies = await Company.count();
         
         if (existingCompanies === 0) {
-          console.log("🌱 [DEBUG] Database is empty, seeding with sample data...");
           const { SeedService } = await import('./seed.service');
-          
-          // Seed the database with sample company data
           await SeedService.seedDatabase(sequelize);
-          console.log("✅ [DEBUG] Sample data seeded successfully");
           seeded = true;
-        } else {
-          console.log(`ℹ️ [DEBUG] Database already contains ${existingCompanies} company/companies, skipping seed`);
         }
-      } catch (seedError) {
-        // Don't fail the initialization if seeding fails - just log it
-        console.error("⚠️ [DEBUG] Failed to seed database with sample data:", seedError);
-        console.error("   Database tables were created successfully, but seeding failed.");
-        console.error("   You can manually seed the database later if needed.");
+      } catch {
+        // Don't fail initialization if seeding fails
       }
       
       // Close the connection
@@ -221,8 +180,7 @@ export class DatabaseService {
         }
       }
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ [DEBUG] initializeDatabase error:', errorMessage);
+        error instanceof Error ? error.message : 'Initialization failed';
       return { success: false, error: errorMessage };
     }
   }

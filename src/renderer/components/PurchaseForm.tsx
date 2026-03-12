@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,14 +12,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { ShoppingBag, ArrowLeft, Loader2, Plus, X, Trash2, Package, Building2 } from "lucide-react";
+import { ShoppingBag, ArrowLeft, Loader2, Plus, Trash2, Package, Building2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { AppLayout } from "./AppLayout";
 
 interface Product {
   id: string;
   sku: string;
   name: string;
-  unitPrice: number | string;
+  unitPrice?: number | string;
+  unitOfMeasurement?: string | null;
+  trackByBatch?: boolean;
 }
 
 interface Vendor {
@@ -44,6 +47,7 @@ interface PurchaseItem {
 export function PurchaseForm() {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +64,31 @@ export function PurchaseForm() {
       loadData();
     }
   }, [companyId]);
+
+  // Pre-select product when navigated from ProductDetail (Record Purchase)
+  const preselectedProductId = (location.state as { preselectedProductId?: string })?.preselectedProductId;
+  useEffect(() => {
+    if (preselectedProductId && products.length > 0 && purchaseItems.length === 0) {
+      const product = products.find((p) => p.id === preselectedProductId);
+      if (product) {
+        const defaultUnitPrice = product.trackByBatch === false && product.unitPrice != null
+          ? (typeof product.unitPrice === 'number' ? product.unitPrice : parseFloat(String(product.unitPrice)) || 0)
+          : 0;
+        setPurchaseItems([{
+          productId: preselectedProductId,
+          quantity: 1,
+          unitPrice: defaultUnitPrice,
+          totalPrice: defaultUnitPrice,
+          productName: product.name,
+          productSku: product.sku,
+          batchNumber: product.trackByBatch !== false ? `BATCH-${product.sku}-${Date.now()}` : "",
+          manufacturingDate: "",
+          expiryDate: "",
+        }]);
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [preselectedProductId, products, purchaseItems.length, navigate, location.pathname]);
 
   useEffect(() => {
     // Recalculate total when items change
@@ -114,18 +143,23 @@ export function PurchaseForm() {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
 
-    // Start with 0 unit price - user must enter it manually
-    // Prices are tracked at batch level, not product level
+    // Item-tracked: use product.unitPrice as default (cost reference); batch-tracked: 0 until user enters
+    const defaultUnitPrice = product.trackByBatch === false && product.unitPrice != null
+      ? (typeof product.unitPrice === 'number' ? product.unitPrice : parseFloat(String(product.unitPrice)) || 0)
+      : 0;
+
     const updatedItems = [...purchaseItems];
     updatedItems[index] = {
       ...updatedItems[index],
       productId,
-      unitPrice: 0,
+      unitPrice: defaultUnitPrice,
       productName: product.name,
       productSku: product.sku,
-      totalPrice: 0,
-      // Auto-generate batch number if empty
-      batchNumber: updatedItems[index].batchNumber || `BATCH-${product.sku}-${Date.now()}`,
+      totalPrice: updatedItems[index].quantity * defaultUnitPrice,
+      // Auto-generate batch number for batch-tracked products
+      batchNumber: product.trackByBatch !== false
+        ? (updatedItems[index].batchNumber || `BATCH-${product.sku}-${Date.now()}`)
+        : "",
     };
     setPurchaseItems(updatedItems);
   };
@@ -190,8 +224,9 @@ export function PurchaseForm() {
         setError(`Item ${i + 1}: Please select a product`);
         return;
       }
-      if (!item.batchNumber.trim()) {
-        setError(`Item ${i + 1}: Batch number is required`);
+      const product = products.find((p) => p.id === item.productId);
+      if (product?.trackByBatch !== false && !item.batchNumber?.trim()) {
+        setError(`Item ${i + 1}: Batch number is required for batch-tracked products`);
         return;
       }
       if (item.quantity <= 0) {
@@ -212,14 +247,18 @@ export function PurchaseForm() {
         vendorId: selectedVendorId,
         paymentType,
         notes: notes.trim() || undefined,
-        items: purchaseItems.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          batchNumber: item.batchNumber.trim(),
-          manufacturingDate: item.manufacturingDate || undefined,
-          expiryDate: item.expiryDate || undefined,
-        })),
+        items: purchaseItems.map((item) => {
+          const product = products.find((p) => p.id === item.productId);
+          const isItemTracked = product?.trackByBatch === false;
+          return {
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            batchNumber: isItemTracked ? undefined : item.batchNumber?.trim(),
+            manufacturingDate: isItemTracked ? undefined : item.manufacturingDate || undefined,
+            expiryDate: isItemTracked ? undefined : item.expiryDate || undefined,
+          };
+        }),
       });
 
       if (result?.success) {
@@ -343,15 +382,18 @@ export function PurchaseForm() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Purchase Items</CardTitle>
+                  <div>
+                    <CardTitle>Purchase Items</CardTitle>
+                    <CardDescription className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="text-xs">Batch</Badge> items require batch # and dates.
+                      <Badge variant="outline" className="text-xs">Item</Badge> items add to product stock; unit price pre-filled.
+                    </CardDescription>
+                  </div>
                   <Button type="button" variant="outline" onClick={handleAddItem}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Item
                   </Button>
                 </div>
-                <CardDescription>
-                  Add products to purchase. Each item will create a new batch in inventory.
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 {purchaseItems.length === 0 ? (
@@ -370,7 +412,10 @@ export function PurchaseForm() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {purchaseItems.map((item, index) => (
+                    {purchaseItems.map((item, index) => {
+                      const selectedProduct = products.find((p) => p.id === item.productId);
+                      const isBatchTracked = selectedProduct?.trackByBatch !== false;
+                      return (
                       <Card key={index} className="border-2">
                         <CardContent className="pt-6">
                           <div className="flex items-start justify-between mb-4">
@@ -398,12 +443,24 @@ export function PurchaseForm() {
                               >
                                 {products.map((product) => (
                                   <SelectItem key={product.id} value={product.id}>
-                                    {product.name} ({product.sku})
+                                    <span className="flex items-center gap-2">
+                                      {product.name} ({product.sku})
+                                      {product.trackByBatch === false ? (
+                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                          Item
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                          Batch
+                                        </Badge>
+                                      )}
+                                    </span>
                                   </SelectItem>
                                 ))}
                               </SearchableSelect>
                             </div>
 
+                            {isBatchTracked && (
                             <div className="space-y-2">
                               <Label>
                                 Batch Number <span className="text-destructive">*</span>
@@ -416,10 +473,16 @@ export function PurchaseForm() {
                                 required
                               />
                             </div>
+                            )}
 
                             <div className="space-y-2">
                               <Label>
                                 Quantity <span className="text-destructive">*</span>
+                                {selectedProduct && (
+                                  <span className="text-muted-foreground font-normal ml-1">
+                                    ({selectedProduct.unitOfMeasurement || "pcs"})
+                                  </span>
+                                )}
                               </Label>
                               <Input
                                 type="number"
@@ -434,20 +497,31 @@ export function PurchaseForm() {
 
                             <div className="space-y-2">
                               <Label>
-                                Unit Price <span className="text-destructive">*</span>
+                                Unit Price (cost) <span className="text-destructive">*</span>
                               </Label>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={item.unitPrice}
-                                onChange={(e) =>
-                                  handleUnitPriceChange(index, parseFloat(e.target.value) || 0)
-                                }
-                                required
-                              />
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={item.unitPrice}
+                                  onChange={(e) =>
+                                    handleUnitPriceChange(index, parseFloat(e.target.value) || 0)
+                                  }
+                                  required
+                                  className="pl-6"
+                                />
+                              </div>
+                              {isBatchTracked === false && selectedProduct?.unitPrice != null && (
+                                <p className="text-xs text-muted-foreground">
+                                  Pre-filled from product; edit for actual cost
+                                </p>
+                              )}
                             </div>
 
+                            {isBatchTracked && (
+                            <>
                             <div className="space-y-2">
                               <Label>Manufacturing Date</Label>
                               <Input
@@ -469,6 +543,8 @@ export function PurchaseForm() {
                                 }
                               />
                             </div>
+                            </>
+                            )}
                           </div>
 
                           <div className="mt-4 pt-4 border-t">
@@ -481,7 +557,7 @@ export function PurchaseForm() {
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                    ); })}
                   </div>
                 )}
               </CardContent>

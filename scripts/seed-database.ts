@@ -234,7 +234,7 @@ async function main() {
 
     console.log("\n🎉 Database seeding completed successfully!");
     console.log("\n📊 Summary:");
-    console.log("   ✅ Company created: Acme Retail Store");
+    console.log("   ✅ Company created: Prime Grocery Agency");
     console.log("   ✅ Users created: 3 (admin, manager, cashier)");
     console.log("   ✅ Products, batches, customers, vendors, and accounts created");
     console.log("   ✅ Sample sales and purchases created");

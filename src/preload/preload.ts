@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getCompanies: () => ipcRenderer.invoke("get-companies"),
   getCompany: (companyId: string) => ipcRenderer.invoke("get-company", companyId),
   createCompany: (data: any) => ipcRenderer.invoke("create-company", data),
+  updateCompany: (companyId: string, data: any) => ipcRenderer.invoke("update-company", companyId, data),
+  deleteCompany: (companyId: string) => ipcRenderer.invoke("delete-company", companyId),
   getProducts: (companyId: string) => ipcRenderer.invoke("get-products", companyId),
   getProduct: (productId: string) => ipcRenderer.invoke("get-product", productId),
     createProduct: (data: any) => ipcRenderer.invoke("create-product", data),
@@ -70,6 +72,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("check-migration-needed", config),
   seedDatabase: (config: any, clearExisting?: boolean) =>
     ipcRenderer.invoke("seed-database", config, clearExisting),
+  restartApp: () => ipcRenderer.invoke("restart-app"),
   // Mobile API Server
   startMobileServer: (config: any) => ipcRenderer.invoke("mobile-server:start", config),
   stopMobileServer: () => ipcRenderer.invoke("mobile-server:stop"),
@@ -83,6 +86,8 @@ export type ElectronAPI = {
   getCompanies: () => Promise<{ success: boolean; data?: any[]; error?: string }>;
   getCompany: (companyId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   createCompany: (data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  updateCompany: (companyId: string, data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  deleteCompany: (companyId: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   getProducts: (companyId: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
   getProduct: (productId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   createProduct: (data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
@@ -139,6 +144,7 @@ export type ElectronAPI = {
   runDatabaseMigrations: (config: any) => Promise<{ success: boolean; error?: string }>;
   checkMigrationNeeded: (config: any) => Promise<{ needed: boolean; currentVersion?: string | null; requiredVersion: string; error?: string }>;
   seedDatabase: (config: any, clearExisting?: boolean) => Promise<{ success: boolean; message?: string; error?: string }>;
+  restartApp: () => Promise<{ success: boolean; error?: string }>;
   // Mobile API Server
   startMobileServer: (config: any) => Promise<{ success: boolean; error?: string; port?: number; apiKey?: string }>;
   stopMobileServer: () => Promise<{ success: boolean; error?: string }>;

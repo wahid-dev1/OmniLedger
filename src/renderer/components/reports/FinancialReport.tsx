@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
@@ -242,140 +249,136 @@ export function FinancialReport({ companyId, dateRange }: FinancialReportProps) 
       </div>
 
       {/* Filters */}
-      <Card className="print:hidden">
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by transaction #, description, or account..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+      <div className="rounded-lg border print:hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-lg">Filters</TableHead>
+              <TableHead />
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell className="font-medium w-32">Search</TableCell>
+              <TableCell colSpan={2}>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by transaction #, description, or account..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-medium">Account</TableCell>
+              <TableCell colSpan={2}>
+                <Select value={accountFilter} onValueChange={setAccountFilter} disabled={loadingAccounts}>
+                  <SelectTrigger id="accountFilter" className="w-full">
+                    <SelectValue placeholder="All Accounts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Accounts</SelectItem>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.code} - {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
 
-            {/* Account Filter */}
-            <div className="flex items-center gap-2">
-              <Label htmlFor="accountFilter" className="whitespace-nowrap text-sm">
-                Account:
-              </Label>
-              <Select value={accountFilter} onValueChange={setAccountFilter} disabled={loadingAccounts}>
-                <SelectTrigger id="accountFilter" className="w-full">
-                  <SelectValue placeholder="All Accounts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Accounts</SelectItem>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.code} - {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4 print:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Debits</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-600" />
-              <span className="text-2xl font-bold text-red-600">{format(summary.totalDebits)}</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Credits</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-2xl font-bold text-green-600">{format(summary.totalCredits)}</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold">{summary.totalTransactions}</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Summary Table */}
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-sm font-medium text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4 text-red-600" />
+                  Total Debits
+                </span>
+              </TableHead>
+              <TableHead className="text-sm font-medium text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                  Total Credits
+                </span>
+              </TableHead>
+              <TableHead className="text-sm font-medium text-muted-foreground">Transactions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell className="text-2xl font-bold text-red-600">{format(summary.totalDebits)}</TableCell>
+              <TableCell className="text-2xl font-bold text-green-600">{format(summary.totalCredits)}</TableCell>
+              <TableCell className="text-2xl font-bold">{summary.totalTransactions}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Transactions Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Ledger Transactions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b print:border-b-2">
-                  <th className="text-left p-2 font-medium">TXN #</th>
-                  <th className="text-left p-2 font-medium">Date</th>
-                  <th className="text-left p-2 font-medium">Description</th>
-                  <th className="text-left p-2 font-medium">Debit Account</th>
-                  <th className="text-left p-2 font-medium">Credit Account</th>
-                  <th className="text-right p-2 font-medium">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center p-8 text-muted-foreground">
-                      No transactions found for the selected date range
-                    </td>
-                  </tr>
-                ) : (
-                  transactions.map((txn) => {
-                    const amount = typeof txn.amount === 'number' 
-                      ? txn.amount 
-                      : parseFloat(txn.amount.toString());
+      <div className="rounded-lg border">
+        <div className="px-4 py-3 border-b">
+          <h3 className="text-lg font-semibold">Ledger Transactions</h3>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>TXN #</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Debit Account</TableHead>
+              <TableHead>Credit Account</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredTransactions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center p-8 text-muted-foreground">
+                  No transactions found for the selected date range
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredTransactions.map((txn) => {
+                const amount = typeof txn.amount === 'number' 
+                  ? txn.amount 
+                  : parseFloat(txn.amount.toString());
 
-                    return (
-                      <tr key={txn.id} className="border-b print:border-b">
-                        <td className="p-2">{txn.transactionNumber}</td>
-                        <td className="p-2">{new Date(txn.transactionDate).toLocaleDateString()}</td>
-                        <td className="p-2">{txn.description}</td>
-                        <td className="p-2">
-                          {txn.debitAccount.code} - {txn.debitAccount.name}
-                        </td>
-                        <td className="p-2">
-                          {txn.creditAccount.code} - {txn.creditAccount.name}
-                        </td>
-                        <td className="p-2 text-right">{format(amount)}</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-              <tfoot className="border-t-2 print:border-t-2 font-bold">
-                <tr>
-                  <td colSpan={5} className="p-2">Total</td>
-                  <td className="p-2 text-right">{format(summary.totalDebits)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                return (
+                  <TableRow key={txn.id}>
+                    <TableCell>{txn.transactionNumber}</TableCell>
+                    <TableCell>{new Date(txn.transactionDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{txn.description}</TableCell>
+                    <TableCell>
+                      {txn.debitAccount.code} - {txn.debitAccount.name}
+                    </TableCell>
+                    <TableCell>
+                      {txn.creditAccount.code} - {txn.creditAccount.name}
+                    </TableCell>
+                    <TableCell className="text-right">{format(amount)}</TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={5} className="font-bold">Total</TableCell>
+              <TableCell className="text-right font-bold">{format(summary.totalDebits)}</TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </div>
 
       <style>{`
         @media print {

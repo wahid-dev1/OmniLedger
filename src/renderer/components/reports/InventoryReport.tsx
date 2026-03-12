@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { Loader2, Package, AlertTriangle, CheckCircle } from "lucide-react";
@@ -229,165 +235,156 @@ export function InventoryReport({ companyId, dateRange }: InventoryReportProps) 
       </div>
 
       {/* Filters */}
-      <Card className="print:hidden">
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by SKU, name, or category..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            {/* Stock Status Filter */}
-            <div className="flex items-center gap-2">
-              <Label htmlFor="stockFilter" className="whitespace-nowrap text-sm">
-                Status:
-              </Label>
-              <Select value={stockFilter} onValueChange={(value) => setStockFilter(value as StockFilter)}>
-                <SelectTrigger id="stockFilter" className="w-full">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="in_stock">In Stock</SelectItem>
-                  <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-                  <SelectItem value="expiring_soon">Expiring Soon</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Category Filter */}
-            <div className="flex items-center gap-2">
-              <Label htmlFor="categoryFilter" className="whitespace-nowrap text-sm">
-                Category:
-              </Label>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger id="categoryFilter" className="w-full">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Products</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span className="text-2xl font-bold">{summary.totalProducts}</span>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">In Stock</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <span className="text-2xl font-bold text-green-600">{summary.inStock}</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Out of Stock</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <span className="text-2xl font-bold text-red-600">{summary.outOfStock}</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Expiring Soon</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <span className="text-2xl font-bold text-orange-600">{summary.expiringSoon}</span>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="rounded-lg border print:hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-lg">Filters</TableHead>
+              <TableHead />
+              <TableHead />
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell className="font-medium w-32">Search</TableCell>
+              <TableCell colSpan={3}>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by SKU, name, or category..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-medium">Status</TableCell>
+              <TableCell>
+                <Select value={stockFilter} onValueChange={(value) => setStockFilter(value as StockFilter)}>
+                  <SelectTrigger id="stockFilter" className="w-full">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="in_stock">In Stock</SelectItem>
+                    <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                    <SelectItem value="expiring_soon">Expiring Soon</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell className="font-medium">Category</TableCell>
+              <TableCell>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger id="categoryFilter" className="w-full">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
 
-      {/* Inventory Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Product Inventory</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b print:border-b-2">
-                  <th className="text-left p-2 font-medium">SKU</th>
-                  <th className="text-left p-2 font-medium">Product Name</th>
-                  <th className="text-left p-2 font-medium">Category</th>
-                  <th className="text-right p-2 font-medium">Total Stock</th>
-                  <th className="text-right p-2 font-medium">Available</th>
-                  <th className="text-left p-2 font-medium">Status</th>
-                  <th className="text-left p-2 font-medium">Nearest Expiry</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center p-8 text-muted-foreground">
-                      No products found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <tr key={product.id} className="border-b print:border-b">
-                      <td className="p-2">{product.sku}</td>
-                      <td className="p-2">{product.name}</td>
-                      <td className="p-2">{product.category || "-"}</td>
-                      <td className="p-2 text-right">{product.totalStock}</td>
-                      <td className="p-2 text-right">{product.availableStock}</td>
-                      <td className="p-2">
-                        {product.isInStock ? (
-                          <span className="text-green-600">In Stock</span>
-                        ) : (
-                          <span className="text-red-600">Out of Stock</span>
-                        )}
-                      </td>
-                      <td className="p-2">
-                        {product.hasExpiringSoon ? (
-                          <span className="text-orange-600">{formatExpiryDate(product.nearestExpiryDate)}</span>
-                        ) : (
-                          formatExpiryDate(product.nearestExpiryDate)
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Summary Table */}
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-sm font-medium text-muted-foreground">Total Products</TableHead>
+              <TableHead className="text-sm font-medium text-muted-foreground">In Stock</TableHead>
+              <TableHead className="text-sm font-medium text-muted-foreground">Out of Stock</TableHead>
+              <TableHead className="text-sm font-medium text-muted-foreground">Expiring Soon</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell className="text-2xl font-bold">{summary.totalProducts}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-2xl font-bold text-green-600">{summary.inStock}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <span className="text-2xl font-bold text-red-600">{summary.outOfStock}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                  <span className="text-2xl font-bold text-orange-600">{summary.expiringSoon}</span>
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Product Inventory Table */}
+      <div className="rounded-lg border">
+        <div className="px-4 py-3 border-b">
+          <h3 className="text-lg font-semibold">Product Inventory</h3>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>SKU</TableHead>
+              <TableHead>Product Name</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead className="text-right">Total Stock</TableHead>
+              <TableHead className="text-right">Available</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Nearest Expiry</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredProducts.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center p-8 text-muted-foreground">
+                  No products found
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredProducts.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell>{product.sku}</TableCell>
+                  <TableCell>{product.name}</TableCell>
+                  <TableCell>{product.category || "-"}</TableCell>
+                  <TableCell className="text-right">{product.totalStock}</TableCell>
+                  <TableCell className="text-right">{product.availableStock}</TableCell>
+                  <TableCell>
+                    {product.isInStock ? (
+                      <span className="text-green-600">In Stock</span>
+                    ) : (
+                      <span className="text-red-600">Out of Stock</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {product.hasExpiringSoon ? (
+                      <span className="text-orange-600">{formatExpiryDate(product.nearestExpiryDate)}</span>
+                    ) : (
+                      formatExpiryDate(product.nearestExpiryDate)
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <style>{`
         @media print {

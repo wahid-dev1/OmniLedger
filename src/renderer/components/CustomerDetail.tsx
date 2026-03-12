@@ -2,7 +2,18 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, ArrowLeft, Mail, Phone, MapPin, Edit, ShoppingCart, Calendar, Loader2, Map, Wallet, AlertCircle, Printer } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Users, ArrowLeft, Mail, Phone, MapPin, Edit, ShoppingCart, Calendar, Loader2, Map, Wallet, AlertCircle, Printer, Plus, Banknote } from "lucide-react";
 import { AppLayout } from "./AppLayout";
 import { generateCustomerStatementPDF } from "@/lib/customerStatementPDFGenerator";
 import { CustomerStatementPreviewDialog } from "./CustomerStatementPreviewDialog";
@@ -44,12 +55,20 @@ interface Customer {
 export function CustomerDetail() {
   const { companyId, customerId } = useParams<{ companyId: string; customerId: string }>();
   const navigate = useNavigate();
-  const { format } = useCompanyCurrency(companyId);
+  const { format, currency } = useCompanyCurrency(companyId);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [company, setCompany] = useState<{ name: string; address?: string; phone?: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [addingPayment, setAddingPayment] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: "",
+    paymentType: "cash" as "cash" | "bank" | "cod",
+    notes: "",
+  });
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (customerId && companyId) {
@@ -91,6 +110,71 @@ export function CustomerDetail() {
       console.error("Error loading customer detail:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Get sales with outstanding balance, sorted by date (FIFO - oldest first)
+  const salesWithBalance = (customer?.sales || []).map((sale) => {
+    const amount = typeof sale.totalAmount === "number"
+      ? sale.totalAmount
+      : parseFloat(sale.totalAmount.toString());
+    const paid =
+      sale.paidAmount !== undefined
+        ? typeof sale.paidAmount === "number"
+          ? sale.paidAmount
+          : parseFloat(sale.paidAmount.toString())
+        : 0;
+    return { ...sale, amount, paid, remaining: amount - paid };
+  })
+    .filter((s) => s.remaining > 0)
+    .sort((a, b) => new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime());
+
+  const handleAddPayment = async () => {
+    const totalPayment = parseFloat(paymentForm.amount);
+    if (isNaN(totalPayment) || totalPayment <= 0) {
+      setPaymentError("Please enter a valid payment amount");
+      return;
+    }
+    if (totalPayment > remainingBalance) {
+      setPaymentError(`Payment amount cannot exceed total remaining balance of ${format(remainingBalance)}`);
+      return;
+    }
+
+    setAddingPayment(true);
+    setPaymentError(null);
+
+    try {
+      let remainingToApply = totalPayment;
+      const paymentData = {
+        paymentType: paymentForm.paymentType,
+        notes: paymentForm.notes.trim() || undefined,
+      };
+
+      for (const sale of salesWithBalance) {
+        if (remainingToApply <= 0) break;
+        const amountForThisSale = Math.min(remainingToApply, sale.remaining);
+        if (amountForThisSale <= 0) continue;
+
+        const result = await (window as any).electronAPI?.addSalePayment(sale.id, {
+          amount: amountForThisSale,
+          ...paymentData,
+        });
+
+        if (!result?.success) {
+          setPaymentError(result?.error || "Failed to add payment");
+          return;
+        }
+        remainingToApply -= amountForThisSale;
+      }
+
+      await loadCustomerDetail();
+      setPaymentDialogOpen(false);
+      setPaymentForm({ amount: "", paymentType: "cash", notes: "" });
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : "Unknown error");
+      console.error("Error adding payment:", err);
+    } finally {
+      setAddingPayment(false);
     }
   };
 
@@ -162,6 +246,113 @@ export function CustomerDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {remainingBalance > 0 && (
+                <Dialog
+                  open={paymentDialogOpen}
+                  onOpenChange={(open) => {
+                    setPaymentDialogOpen(open);
+                    setPaymentError(null);
+                    if (!open) {
+                      setPaymentForm({ amount: "", paymentType: "cash", notes: "" });
+                    }
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <Button variant="default">
+                      <Banknote className="h-4 w-4 mr-2" />
+                      Record Payment
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Record Payment</DialogTitle>
+                      <DialogDescription>
+                        Record a payment to deduct from the customer&apos;s outstanding sale balance. Total remaining: {format(remainingBalance)}
+                      </DialogDescription>
+                    </DialogHeader>
+                    {paymentError && (
+                      <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        {paymentError}
+                      </div>
+                    )}
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-amount">Amount *</Label>
+                        <Input
+                          id="payment-amount"
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          max={remainingBalance}
+                          placeholder="0.00"
+                          value={paymentForm.amount}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                          disabled={addingPayment}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Payment will be applied to oldest unpaid sales first (FIFO). Max: {format(remainingBalance)}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-type">Payment Type *</Label>
+                        <Select
+                          value={paymentForm.paymentType}
+                          onValueChange={(value: "cash" | "bank" | "cod") =>
+                            setPaymentForm({ ...paymentForm, paymentType: value })
+                          }
+                          disabled={addingPayment}
+                        >
+                          <SelectTrigger id="payment-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Cash (By Hand)</SelectItem>
+                            <SelectItem value="bank">Bank Transfer</SelectItem>
+                            <SelectItem value="cod">COD (Cash on Delivery)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-notes">Notes (Optional)</Label>
+                        <Textarea
+                          id="payment-notes"
+                          placeholder="Payment notes or reference..."
+                          value={paymentForm.notes}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                          disabled={addingPayment}
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setPaymentDialogOpen(false);
+                          setPaymentForm({ amount: "", paymentType: "cash", notes: "" });
+                        }}
+                        disabled={addingPayment}
+                      >
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAddPayment} disabled={addingPayment}>
+                        {addingPayment ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Adding...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Payment
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -405,6 +596,7 @@ export function CustomerDetail() {
 
                 console.log('Generating PDF with company:', company);
                 generateCustomerStatementPDF({
+                  currency,
                   company: company && company.name ? company : undefined,
                   customer: {
                     name: customer.name,

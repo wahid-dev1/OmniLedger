@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Package, ShoppingCart, Users, TrendingUp, Boxes, FileText } from "lucide-react";
+import { Building2, Package, ShoppingCart, Users, TrendingUp, Boxes, FileText, Settings } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { AppLayout } from "./AppLayout";
 import { useCompanyCurrency } from "../hooks/useCompanyCurrency";
 
@@ -26,6 +27,7 @@ interface CompanyStats {
 
 export function Dashboard() {
   const { companyId } = useParams<{ companyId: string }>();
+  const navigate = useNavigate();
   const { format } = useCompanyCurrency(companyId);
   const [stats, setStats] = useState<CompanyStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,6 +125,10 @@ export function Dashboard() {
               <p className="text-muted-foreground mt-1">{stats.address}</p>
             )}
           </div>
+          <Button variant="outline" size="sm" onClick={() => navigate(`/company/${companyId}/edit`)}>
+            <Settings className="h-4 w-4 mr-2" />
+            Edit Company
+          </Button>
         </div>
 
         {/* Statistics Cards */}

@@ -33,7 +33,7 @@ interface SaleItem {
     id: string;
     batchNumber: string;
     expiryDate?: string;
-  };
+  } | null;
 }
 
 interface Transaction {
@@ -83,7 +83,7 @@ interface Sale {
 export function SaleDetail() {
   const { companyId, saleId } = useParams<{ companyId: string; saleId: string }>();
   const navigate = useNavigate();
-  const { format } = useCompanyCurrency(companyId);
+  const { format, currency } = useCompanyCurrency(companyId);
   const [sale, setSale] = useState<Sale | null>(null);
   const [company, setCompany] = useState<{ name: string; address?: string; phone?: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -622,15 +622,15 @@ export function SaleDetail() {
                                   <p className="text-xs text-muted-foreground mb-1">Batch Number</p>
                                   <p className="font-semibold flex items-center gap-1">
                                     <Boxes className="h-4 w-4" />
-                                    {item.batch.batchNumber}
+                                    {item.batch?.batchNumber ?? '—'}
                                   </p>
                                 </div>
-                                {item.batch.expiryDate && (
+                                {item.batch?.expiryDate && (
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Expiry Date</p>
                                     <p className="font-semibold flex items-center gap-1">
                                       <Calendar className="h-4 w-4" />
-                                      {new Date(item.batch.expiryDate).toLocaleDateString()}
+                                      {new Date(item.batch!.expiryDate).toLocaleDateString()}
                                     </p>
                                   </div>
                                 )}
@@ -978,7 +978,7 @@ export function SaleDetail() {
                 return {
                   sku: item.product.sku,
                   name: item.product.name,
-                  batchNumber: item.batch.batchNumber,
+                  batchNumber: item.batch?.batchNumber ?? '—',
                   quantity: item.quantity,
                   unitPrice: unitPrice,
                   totalPrice: totalPrice,
@@ -994,6 +994,7 @@ export function SaleDetail() {
                 type: 'sale',
                 documentNumber: sale.saleNumber,
                 date: sale.saleDate,
+                currency,
                 company: company && company.name ? company : undefined,
                 customerOrVendor: {
                   name: sale.customer?.name || 'Walk-in Customer',
@@ -1029,7 +1030,7 @@ export function SaleDetail() {
               return {
                 sku: item.product.sku,
                 name: item.product.name,
-                batchNumber: item.batch.batchNumber,
+                batchNumber: item.batch?.batchNumber ?? '—',
                 quantity: item.quantity,
                 unitPrice: unitPrice,
                 totalPrice: totalPrice,

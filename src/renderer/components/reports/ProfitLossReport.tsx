@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Loader2, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { generatePDFReport } from "@/lib/pdfGenerator";
 import { PDFPreviewDialog } from "./PDFPreviewDialog";
@@ -195,175 +203,167 @@ export function ProfitLossReport({ companyId, dateRange, onPrintPDF }: ProfitLos
   return (
     <>
       <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Total Income
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{format(totalIncome)}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <TrendingDown className="h-4 w-4" />
-                Total Expenses
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{format(totalExpenses)}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Net Profit/Loss
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {format(Math.abs(netProfit))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {netProfit >= 0 ? 'Profit' : 'Loss'}
-              </p>
-            </CardContent>
-          </Card>
+        {/* Summary Table */}
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-sm font-medium text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Total Income
+                  </span>
+                </TableHead>
+                <TableHead className="text-sm font-medium text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4" />
+                    Total Expenses
+                  </span>
+                </TableHead>
+                <TableHead className="text-sm font-medium text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Net Profit/Loss
+                  </span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="text-2xl font-bold text-green-600">{format(totalIncome)}</TableCell>
+                <TableCell className="text-2xl font-bold text-red-600">{format(totalExpenses)}</TableCell>
+                <TableCell>
+                  <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {format(Math.abs(netProfit))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {netProfit >= 0 ? 'Profit' : 'Loss'}
+                  </p>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </div>
 
         {/* Income Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <div className="rounded-lg border">
+          <div className="px-4 py-3 border-b">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-green-600" />
               Income
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {incomeAccounts.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No income accounts found.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3 text-sm font-medium">Account Code</th>
-                        <th className="text-left p-3 text-sm font-medium">Account Name</th>
-                        <th className="text-right p-3 text-sm font-medium">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {incomeAccounts.map((account) => {
-                        const balance = typeof account.balance === 'number' 
-                          ? account.balance 
-                          : parseFloat(account.balance.toString());
-                        return (
-                          <tr key={account.id} className="border-b">
-                            <td className="p-3 text-sm font-mono">{account.code}</td>
-                            <td className="p-3 text-sm">{account.name}</td>
-                            <td className="p-3 text-sm text-right font-semibold text-green-600">
-                              {format(Math.abs(balance))}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      <tr className="border-t-2 font-bold">
-                        <td colSpan={2} className="p-3 text-sm">Total Income</td>
-                        <td className="p-3 text-sm text-right text-green-600">{format(totalIncome)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </h3>
+          </div>
+          {incomeAccounts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No income accounts found.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Account Code</TableHead>
+                  <TableHead>Account Name</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {incomeAccounts.map((account) => {
+                  const balance = typeof account.balance === 'number' 
+                    ? account.balance 
+                    : parseFloat(account.balance.toString());
+                  return (
+                    <TableRow key={account.id}>
+                      <TableCell className="font-mono">{account.code}</TableCell>
+                      <TableCell>{account.name}</TableCell>
+                      <TableCell className="text-right font-semibold text-green-600">
+                        {format(Math.abs(balance))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={2} className="font-bold">Total Income</TableCell>
+                  <TableCell className="text-right font-bold text-green-600">{format(totalIncome)}</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          )}
+        </div>
 
         {/* Expenses Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <div className="rounded-lg border">
+          <div className="px-4 py-3 border-b">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
               <TrendingDown className="h-5 w-5 text-red-600" />
               Expenses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {expenseAccounts.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No expense accounts found.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3 text-sm font-medium">Account Code</th>
-                        <th className="text-left p-3 text-sm font-medium">Account Name</th>
-                        <th className="text-right p-3 text-sm font-medium">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expenseAccounts.map((account) => {
-                        const balance = typeof account.balance === 'number' 
-                          ? account.balance 
-                          : parseFloat(account.balance.toString());
-                        return (
-                          <tr key={account.id} className="border-b">
-                            <td className="p-3 text-sm font-mono">{account.code}</td>
-                            <td className="p-3 text-sm">{account.name}</td>
-                            <td className="p-3 text-sm text-right font-semibold text-red-600">
-                              {format(Math.abs(balance))}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      <tr className="border-t-2 font-bold">
-                        <td colSpan={2} className="p-3 text-sm">Total Expenses</td>
-                        <td className="p-3 text-sm text-right text-red-600">{format(totalExpenses)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </h3>
+          </div>
+          {expenseAccounts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No expense accounts found.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Account Code</TableHead>
+                  <TableHead>Account Name</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenseAccounts.map((account) => {
+                  const balance = typeof account.balance === 'number' 
+                    ? account.balance 
+                    : parseFloat(account.balance.toString());
+                  return (
+                    <TableRow key={account.id}>
+                      <TableCell className="font-mono">{account.code}</TableCell>
+                      <TableCell>{account.name}</TableCell>
+                      <TableCell className="text-right font-semibold text-red-600">
+                        {format(Math.abs(balance))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={2} className="font-bold">Total Expenses</TableCell>
+                  <TableCell className="text-right font-bold text-red-600">{format(totalExpenses)}</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          )}
+        </div>
 
         {/* Net Profit/Loss Summary */}
-        <Card className="bg-muted">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-semibold">Net Profit / Loss</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {dateRange.from && dateRange.to 
-                    ? `${new Date(dateRange.from).toLocaleDateString()} - ${new Date(dateRange.to).toLocaleDateString()}`
-                    : 'All Time'}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className={`text-3xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {format(Math.abs(netProfit))}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {netProfit >= 0 ? 'Profit' : 'Loss'}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-lg border bg-muted">
+          <Table>
+            <TableBody>
+              <TableRow>
+                <TableCell>
+                  <p className="text-lg font-semibold">Net Profit / Loss</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {dateRange.from && dateRange.to 
+                      ? `${new Date(dateRange.from).toLocaleDateString()} - ${new Date(dateRange.to).toLocaleDateString()}`
+                      : 'All Time'}
+                  </p>
+                </TableCell>
+                <TableCell className="text-right">
+                  <p className={`text-3xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {format(Math.abs(netProfit))}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {netProfit >= 0 ? 'Profit' : 'Loss'}
+                  </p>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <PDFPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} />
