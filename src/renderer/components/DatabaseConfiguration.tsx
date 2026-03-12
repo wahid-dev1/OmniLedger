@@ -374,7 +374,7 @@ export function DatabaseConfiguration() {
         setError(null);
         if (result.migrated) {
           const msg = result.seeded 
-            ? "Database tables created and sample data loaded (Acme Retail Store, demo users)."
+            ? "Database tables created and sample data loaded (Prime Grocery Agency, demo users)."
             : "Database tables created successfully.";
           setInitializationStatus(msg);
           setSuccessMessage(msg);

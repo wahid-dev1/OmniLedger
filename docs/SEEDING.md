@@ -8,12 +8,12 @@ The seed service populates the database with realistic dummy data for testing an
 
 When you run the seed, it creates:
 
-- **1 Company**: "Acme Retail Store" with contact information
+- **1 Company**: "Prime Grocery Agency" (Pakistan-based grocery agency)
 - **3 Users**: 
-  - Admin (admin@acmeretail.com)
-  - Manager (manager@acmeretail.com)
-  - Cashier (cashier@acmeretail.com)
-- **8 Products**: Various products across categories (Beverages, Confectionery, Health)
+  - Admin (admin@primegrocery.pk)
+  - Manager (manager@primegrocery.pk)
+  - Cashier (cashier@primegrocery.pk)
+- **16 Products**: Pakistani grocery items (Staples, Pulses, Beverages, Spices, Snacks, Dairy)
 - **Multiple Batches**: 1-3 batches per product with expiry dates and quantities
 - **4 Customers**: Sample customer records
 - **2 Vendors**: Supplier records
@@ -74,9 +74,8 @@ await SeedService.seedDatabase(prisma);
 ## Sample Data Details
 
 ### Products
-- Coffee Beans, Tea, Chocolate Bars, Water, Energy Drinks, Protein Bars, Vitamins
-- Prices range from $1.50 to $25.99
-- Categories: Beverages, Confectionery, Health
+- Pakistani grocery items: Basmati Rice, Chana Dal, Moong Dal, Cooking Oil, Rooh Afza, Pakola, Tapal Tea, Sugar, Chakki Atta, spices (Red Chilli, Turmeric, Chicken Tikka Masala), Nestle Tea Creamer, Kurkure, Peek Freans, Desi Ghee
+- Categories: Staples, Pulses & Lentils, Cooking Oil, Beverages, Spices, Dairy, Snacks
 
 ### Batches
 - Each product has 1-3 batches

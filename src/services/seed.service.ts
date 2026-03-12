@@ -42,12 +42,12 @@ export class SeedService {
       await sequelize.query('PRAGMA foreign_keys = OFF');
     }
 
-    // Create Company
+    // Create Company - Grocery Agency (Pakistan)
     const company = await Company.create({
-        name: "Acme Retail Store",
-        address: "123 Main Street, City, State 12345",
-        phone: "+1-555-0123",
-        email: "info@acmeretail.com",
+        name: "Prime Grocery Agency",
+        address: "Plot 15, Block 7, Gulberg III, Lahore, Punjab 54000",
+        phone: "+92-42-35761234",
+        email: "info@primegrocery.pk",
         currency: DEFAULT_CURRENCY,
     } as any);
     const companyData = company.toJSON();
@@ -55,79 +55,127 @@ export class SeedService {
 
     // Create Users
     await User.create({
-        email: "admin@acmeretail.com",
-        name: "John Admin",
+        email: "admin@primegrocery.pk",
+        name: "Ahmed Khan",
         password: "hashed_password_admin", // TODO: Hash this properly
         role: "admin",
         companyId: companyData.id,
     } as any);
 
     await User.create({
-        email: "manager@acmeretail.com",
-        name: "Jane Manager",
+        email: "manager@primegrocery.pk",
+        name: "Fatima Ali",
         password: "hashed_password_manager",
         role: "manager",
         companyId: companyData.id,
     } as any);
 
     await User.create({
-        email: "cashier@acmeretail.com",
-        name: "Bob Cashier",
+        email: "cashier@primegrocery.pk",
+        name: "Hassan Raza",
         password: "hashed_password_cashier",
         role: "cashier",
         companyId: companyData.id,
     } as any);
     console.log("✅ Created users (admin, manager, cashier)");
 
-    // Create Products
+    // Create Products - Pakistani Grocery Items
     const products = [
       {
-        sku: "PROD-001",
-        name: "Premium Coffee Beans",
-        description: "Arabica coffee beans, 1kg pack",
+        sku: "PKR-001",
+        name: "Sella Basmati Rice",
+        description: "Super Kernel Basmati Rice, 5kg bag",
+        category: "Staples",
+      },
+      {
+        sku: "PKR-002",
+        name: "Chana Dal",
+        description: "Split chickpeas, 1kg",
+        category: "Pulses & Lentils",
+      },
+      {
+        sku: "PKR-003",
+        name: "Moong Dal",
+        description: "Split mung beans, 1kg",
+        category: "Pulses & Lentils",
+      },
+      {
+        sku: "PKR-004",
+        name: "Cooking Oil",
+        description: "Dalda Banaspati Ghee, 1kg",
+        category: "Cooking Oil",
+      },
+      {
+        sku: "PKR-005",
+        name: "Rooh Afza",
+        description: "Sharbat concentrate, 800ml",
         category: "Beverages",
       },
       {
-        sku: "PROD-002",
-        name: "Organic Green Tea",
-        description: "Premium organic green tea, 100g",
+        sku: "PKR-006",
+        name: "Pakola Ice Cola",
+        description: "Pakola soft drink, 250ml",
         category: "Beverages",
       },
       {
-        sku: "PROD-003",
-        name: "Chocolate Bar - Dark",
-        description: "70% dark chocolate, 100g",
-        category: "Confectionery",
-      },
-      {
-        sku: "PROD-004",
-        name: "Chocolate Bar - Milk",
-        description: "Creamy milk chocolate, 100g",
-        category: "Confectionery",
-      },
-      {
-        sku: "PROD-005",
-        name: "Bottled Water",
-        description: "Natural spring water, 500ml",
+        sku: "PKR-007",
+        name: "Tapal Danedar Tea",
+        description: "Tea leaves, 400g",
         category: "Beverages",
       },
       {
-        sku: "PROD-006",
-        name: "Energy Drink",
-        description: "High energy drink, 250ml",
-        category: "Beverages",
+        sku: "PKR-008",
+        name: "Sugar",
+        description: "White refined sugar, 2kg",
+        category: "Staples",
       },
       {
-        sku: "PROD-007",
-        name: "Protein Bar",
-        description: "Chocolate protein bar, 60g",
-        category: "Health",
+        sku: "PKR-009",
+        name: "Chakki Atta",
+        description: "Stone-ground wheat flour, 10kg",
+        category: "Staples",
       },
       {
-        sku: "PROD-008",
-        name: "Vitamin C Tablets",
-        description: "1000mg Vitamin C, 60 tablets",
-        category: "Health",
+        sku: "PKR-010",
+        name: "Red Chilli Powder",
+        description: "Lal mirch powder, 200g",
+        category: "Spices",
+      },
+      {
+        sku: "PKR-011",
+        name: "Turmeric Powder",
+        description: "Haldi powder, 200g",
+        category: "Spices",
+      },
+      {
+        sku: "PKR-012",
+        name: "National Chicken Tikka Masala",
+        description: "Instant masala mix, 200g",
+        category: "Spices",
+      },
+      {
+        sku: "PKR-013",
+        name: "Nestle Everyday Tea Creamer",
+        description: "Tea whitener, 200g",
+        category: "Dairy",
+      },
+      {
+        sku: "PKR-014",
+        name: "Kurkure Masala Munch",
+        description: "Crunchy snack, 60g",
+        category: "Snacks",
+      },
+      {
+        sku: "PKR-015",
+        name: "Peek Freans Sooper",
+        description: "Cream biscuits, 130g",
+        category: "Snacks",
+      },
+      {
+        sku: "PKR-016",
+        name: "Desi Ghee",
+        description: "Pure cow ghee, 1kg",
+        category: "Cooking Oil",
       },
     ];
 
@@ -176,12 +224,12 @@ export class SeedService {
     }
     console.log(`✅ Created ${batches.length} batches`);
 
-    // Create Areas
+    // Create Areas - Pakistani localities
     const areas = [
-      { code: "AREA-001", name: "Downtown" },
-      { code: "AREA-002", name: "Uptown" },
-      { code: "AREA-003", name: "Suburbs" },
-      { code: "AREA-004", name: "Industrial Zone" },
+      { code: "LHR-01", name: "Gulberg III" },
+      { code: "LHR-02", name: "DHA Phase 5" },
+      { code: "LHR-03", name: "Model Town" },
+      { code: "LHR-04", name: "Saddar" },
     ];
 
     const createdAreas = [];
@@ -194,35 +242,35 @@ export class SeedService {
     }
     console.log(`✅ Created ${createdAreas.length} areas`);
 
-    // Create Customers
+    // Create Customers - Pakistani names
     const areaCodes = createdAreas.map(a => a.toJSON().code);
     const customers = [
       {
-        name: "Alice Johnson",
-        email: "alice.johnson@email.com",
-        phone: "+1-555-1001",
-        address: "456 Oak Avenue, City, State 12346",
+        name: "Muhammad Imran",
+        email: "imran.khan@email.com",
+        phone: "+92-300-1234567",
+        address: "45 F Block, Main Blvd, Gulberg III, Lahore",
         areaCode: areaCodes[0],
       },
       {
-        name: "Bob Smith",
-        email: "bob.smith@email.com",
-        phone: "+1-555-1002",
-        address: "789 Pine Road, City, State 12347",
+        name: "Ayesha Malik",
+        email: "ayesha.malik@email.com",
+        phone: "+92-321-9876543",
+        address: "House 12, Street 5, DHA Phase 5, Lahore",
         areaCode: areaCodes[1],
       },
       {
-        name: "Carol Williams",
-        email: "carol.williams@email.com",
-        phone: "+1-555-1003",
-        address: "321 Elm Street, City, State 12348",
+        name: "Abdul Rahman",
+        email: "abdul.rahman@email.com",
+        phone: "+92-333-5551234",
+        address: "Block C, Model Town, Lahore",
         areaCode: areaCodes[2],
       },
       {
-        name: "David Brown",
-        email: "david.brown@email.com",
-        phone: "+1-555-1004",
-        address: "654 Maple Drive, City, State 12349",
+        name: "Sana Khan",
+        email: "sana.khan@email.com",
+        phone: "+92-42-35876543",
+        address: "Shop 8, Anarkali Bazaar, Saddar, Lahore",
         areaCode: areaCodes[3],
       },
     ];
@@ -237,19 +285,19 @@ export class SeedService {
     }
     console.log(`✅ Created ${createdCustomers.length} customers`);
 
-    // Create Vendors
+    // Create Vendors - Pakistani wholesale suppliers
     const vendors = [
       {
-        name: "Global Suppliers Inc.",
-        email: "contact@globalsuppliers.com",
-        phone: "+1-555-2001",
-        address: "1000 Supplier Blvd, City, State 12350",
+        name: "Karachi Wholesale Traders",
+        email: "orders@karachiwholesale.pk",
+        phone: "+92-21-35678901",
+        address: "Sabzi Mandi, Karachi, Sindh",
       },
       {
-        name: "Premium Distributors",
-        email: "info@premiumdist.com",
-        phone: "+1-555-2002",
-        address: "2000 Distribution Way, City, State 12351",
+        name: "Punjab Grocery Distributors",
+        email: "supply@punjabgrocery.pk",
+        phone: "+92-42-35123456",
+        address: "Akbari Mandi, Lahore, Punjab",
       },
     ];
 

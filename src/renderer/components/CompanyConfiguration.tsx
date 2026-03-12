@@ -14,6 +14,7 @@ import {
 import { useAppStore } from "@/stores/useAppStore";
 import { DEFAULT_CURRENCY } from "@shared/constants";
 import { AppLayout } from "./AppLayout";
+import { Trash2 } from "lucide-react";
 
 const CURRENCIES = [
   { code: "PKR", label: "Pakistani Rupee (PKR)" },
@@ -32,6 +33,7 @@ export function CompanyConfiguration() {
   const isEditMode = Boolean(companyId);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingCompany, setLoadingCompany] = useState(isEditMode);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -108,6 +110,31 @@ export function CompanyConfiguration() {
       console.error("Error saving company:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!companyId) return;
+
+    const ok = confirm(
+      `Delete company "${formData.name || "this company"}"?\n\nThis will permanently delete ALL data for this company (products, batches, customers, vendors, accounts, sales, purchases, and transactions). This action cannot be undone.`
+    );
+    if (!ok) return;
+
+    setIsDeleting(true);
+    setError(null);
+    try {
+      const result = await (window as any).electronAPI?.deleteCompany(companyId);
+      if (result?.success) {
+        setCurrentCompany(null);
+        navigate("/");
+      } else {
+        setError(result?.error || "Failed to delete company");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to delete company");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -236,6 +263,17 @@ export function CompanyConfiguration() {
                 >
                   Cancel
                 </Button>
+                {isEditMode && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleDeleteCompany}
+                    disabled={isLoading || isDeleting}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {isDeleting ? "Deleting..." : "Delete Company"}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
@@ -248,10 +286,11 @@ export function CompanyConfiguration() {
                       currency: DEFAULT_CURRENCY,
                     });
                   }}
+                  disabled={isDeleting}
                 >
                   Clear
                 </Button>
-                <Button type="submit" disabled={isLoading || !formData.name.trim()}>
+                <Button type="submit" disabled={isLoading || isDeleting || !formData.name.trim()}>
                   {isLoading ? (isEditMode ? "Saving..." : "Creating...") : (isEditMode ? "Save Changes" : "Create Company")}
                 </Button>
               </div>

@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getCompany: (companyId: string) => ipcRenderer.invoke("get-company", companyId),
   createCompany: (data: any) => ipcRenderer.invoke("create-company", data),
   updateCompany: (companyId: string, data: any) => ipcRenderer.invoke("update-company", companyId, data),
+  deleteCompany: (companyId: string) => ipcRenderer.invoke("delete-company", companyId),
   getProducts: (companyId: string) => ipcRenderer.invoke("get-products", companyId),
   getProduct: (productId: string) => ipcRenderer.invoke("get-product", productId),
     createProduct: (data: any) => ipcRenderer.invoke("create-product", data),
@@ -85,6 +86,7 @@ export type ElectronAPI = {
   getCompany: (companyId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   createCompany: (data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
   updateCompany: (companyId: string, data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  deleteCompany: (companyId: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   getProducts: (companyId: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
   getProduct: (productId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   createProduct: (data: any) => Promise<{ success: boolean; data?: any; error?: string }>;

@@ -665,6 +665,31 @@ ipcMain.handle("update-company", async (_event, companyId: string, data: {
   }
 });
 
+// Delete a company (and all company-scoped data)
+ipcMain.handle("delete-company", async (_event, companyId: string) => {
+  try {
+    if (!companyId) {
+      return { success: false, error: "Company ID is required" };
+    }
+
+    const result = await withConnectionRecovery(async (sequelize) => {
+      return await CompanyService.deleteCompany(sequelize, companyId);
+    });
+
+    if (!result.deleted) {
+      return { success: false, error: "Company not found" };
+    }
+
+    return { success: true, message: "Company deleted successfully" };
+  } catch (error) {
+    console.error("Error deleting company:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+});
+
 // Get products for a company with stock information
 ipcMain.handle("get-products", async (_event, companyId: string) => {
   try {
