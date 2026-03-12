@@ -197,71 +197,68 @@ export class CompanyService {
     }
 
     const isSqlite = sequelize.getDialect() === 'sqlite';
+
+    // For SQLite: PRAGMA foreign_keys must be set before any transaction, on the same connection.
+    // Use raw SQL deletes with PRAGMA to avoid FK mismatch (customers.areaCode -> areas.code).
     if (isSqlite) {
-      await sequelize.query('PRAGMA foreign_keys = OFF');
-    }
+      const run = (sql: string, replacements?: Record<string, string>) =>
+        sequelize.query(sql, { replacements: replacements || { companyId } });
 
-    try {
-      await sequelize.transaction(async (tx) => {
-        const sales = await Sale.findAll({
-          attributes: ['id'],
-          where: { companyId },
-          transaction: tx,
-        });
-        const saleIds = sales.map((s) => s.id);
-
-        if (saleIds.length > 0) {
-          await SaleItem.destroy({ where: { saleId: saleIds }, transaction: tx } as any);
-          await SalePayment.destroy({ where: { saleId: saleIds }, transaction: tx } as any);
-        }
-
-        const purchases = await Purchase.findAll({
-          attributes: ['id'],
-          where: { companyId },
-          transaction: tx,
-        });
-        const purchaseIds = purchases.map((p) => p.id);
-
-        if (purchaseIds.length > 0) {
-          await PurchaseItem.destroy({ where: { purchaseId: purchaseIds }, transaction: tx } as any);
-          await PurchasePayment.destroy({ where: { purchaseId: purchaseIds }, transaction: tx } as any);
-        }
-
-        // Ledger transactions (can reference sales/purchases)
-        await Transaction.destroy({ where: { companyId }, transaction: tx } as any);
-
-        // Documents
-        await Sale.destroy({ where: { companyId }, transaction: tx } as any);
-        await Purchase.destroy({ where: { companyId }, transaction: tx } as any);
-
-        // Inventory
-        await Batch.destroy({ where: { companyId }, transaction: tx } as any);
-        await Product.destroy({ where: { companyId }, transaction: tx } as any);
-
-        // CRM & lookups
-        await Customer.destroy({ where: { companyId }, transaction: tx } as any);
-        await Vendor.destroy({ where: { companyId }, transaction: tx } as any);
-        await Area.destroy({ where: { companyId }, transaction: tx } as any);
-
-        // Accounting
-        await Account.destroy({ where: { companyId }, transaction: tx } as any);
-
-        // Saved configs
-        await ReportConfig.destroy({ where: { companyId }, transaction: tx } as any);
-        await ImportExportTemplate.destroy({ where: { companyId }, transaction: tx } as any);
-
-        // Users
-        await User.destroy({ where: { companyId }, transaction: tx } as any);
-
-        // Finally, the company itself
-        await Company.destroy({ where: { id: companyId }, transaction: tx } as any);
-      });
-
-      return { deleted: true };
-    } finally {
-      if (isSqlite) {
-        await sequelize.query('PRAGMA foreign_keys = ON');
+      await run('PRAGMA foreign_keys = OFF');
+      try {
+        await run('DELETE FROM sale_items WHERE saleId IN (SELECT id FROM sales WHERE companyId = :companyId)');
+        await run('DELETE FROM sale_payments WHERE saleId IN (SELECT id FROM sales WHERE companyId = :companyId)');
+        await run('DELETE FROM transactions WHERE companyId = :companyId');
+        await run('DELETE FROM sales WHERE companyId = :companyId');
+        await run('DELETE FROM purchase_items WHERE purchaseId IN (SELECT id FROM purchases WHERE companyId = :companyId)');
+        await run('DELETE FROM purchase_payments WHERE purchaseId IN (SELECT id FROM purchases WHERE companyId = :companyId)');
+        await run('DELETE FROM purchases WHERE companyId = :companyId');
+        await run('DELETE FROM batches WHERE companyId = :companyId');
+        await run('DELETE FROM products WHERE companyId = :companyId');
+        await run('DELETE FROM customers WHERE companyId = :companyId');
+        await run('DELETE FROM vendors WHERE companyId = :companyId');
+        await run('DELETE FROM areas WHERE companyId = :companyId');
+        await run('DELETE FROM accounts WHERE companyId = :companyId');
+        await run('DELETE FROM report_configs WHERE companyId = :companyId');
+        await run('DELETE FROM import_export_templates WHERE companyId = :companyId');
+        await run('DELETE FROM users WHERE companyId = :companyId');
+        await run('DELETE FROM companies WHERE id = :companyId', { companyId });
+        return { deleted: true };
+      } finally {
+        await run('PRAGMA foreign_keys = ON');
       }
     }
+
+    // Non-SQLite (PostgreSQL, MySQL, etc.): use transaction with model deletes
+    await sequelize.transaction(async (tx) => {
+      const sales = await Sale.findAll({ attributes: ['id'], where: { companyId }, transaction: tx });
+      const saleIds = sales.map((s) => s.id);
+      if (saleIds.length > 0) {
+        await SaleItem.destroy({ where: { saleId: saleIds }, transaction: tx } as any);
+        await SalePayment.destroy({ where: { saleId: saleIds }, transaction: tx } as any);
+      }
+
+      const purchases = await Purchase.findAll({ attributes: ['id'], where: { companyId }, transaction: tx });
+      const purchaseIds = purchases.map((p) => p.id);
+      if (purchaseIds.length > 0) {
+        await PurchaseItem.destroy({ where: { purchaseId: purchaseIds }, transaction: tx } as any);
+        await PurchasePayment.destroy({ where: { purchaseId: purchaseIds }, transaction: tx } as any);
+      }
+
+      await Transaction.destroy({ where: { companyId }, transaction: tx } as any);
+      await Sale.destroy({ where: { companyId }, transaction: tx } as any);
+      await Purchase.destroy({ where: { companyId }, transaction: tx } as any);
+      await Batch.destroy({ where: { companyId }, transaction: tx } as any);
+      await Product.destroy({ where: { companyId }, transaction: tx } as any);
+      await Customer.destroy({ where: { companyId }, transaction: tx } as any);
+      await Vendor.destroy({ where: { companyId }, transaction: tx } as any);
+      await Area.destroy({ where: { companyId }, transaction: tx } as any);
+      await Account.destroy({ where: { companyId }, transaction: tx } as any);
+      await ReportConfig.destroy({ where: { companyId }, transaction: tx } as any);
+      await ImportExportTemplate.destroy({ where: { companyId }, transaction: tx } as any);
+      await User.destroy({ where: { companyId }, transaction: tx } as any);
+      await Company.destroy({ where: { id: companyId }, transaction: tx } as any);
+    });
+    return { deleted: true };
   }
 }

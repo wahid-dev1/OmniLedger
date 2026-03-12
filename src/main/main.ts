@@ -1,6 +1,7 @@
 // Electron main process - Database operations using Sequelize
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
+import { autoUpdater } from "electron-updater";
 import fs from "fs";
 import { pathToFileURL } from "url";
 import { Op, Sequelize } from "sequelize";
@@ -34,6 +35,9 @@ import { Transaction } from "../database/models/Transaction";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
+// Store main window reference for auto-updater to send events
+let mainWindow: BrowserWindow | null = null;
+
 // Suppress SSL certificate errors in development (harmless warnings)
 if (isDev) {
   app.commandLine.appendSwitch('--ignore-certificate-errors');
@@ -42,7 +46,7 @@ if (isDev) {
 
 function createWindow() {
   // Create the browser window
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
@@ -77,10 +81,10 @@ function createWindow() {
       // pathToFileURL properly formats the path for cross-platform compatibility
       const fileUrl = pathToFileURL(htmlPath).href;
       console.log("File URL:", fileUrl);
-      mainWindow.loadURL(fileUrl).catch((err) => {
+      mainWindow!.loadURL(fileUrl).catch((err) => {
         console.error("Failed to load URL:", err);
         // Fallback to loadFile if loadURL fails
-        mainWindow.loadFile(htmlPath).catch((loadFileErr) => {
+        mainWindow?.loadFile(htmlPath).catch((loadFileErr) => {
           console.error("Failed to load file:", loadFileErr);
         });
       });
@@ -91,9 +95,9 @@ function createWindow() {
       if (fs.existsSync(altPath)) {
         const altFileUrl = pathToFileURL(altPath).href;
         console.log("Alternative file URL:", altFileUrl);
-        mainWindow.loadURL(altFileUrl).catch((err) => {
+        mainWindow!.loadURL(altFileUrl).catch((err) => {
           console.error("Failed to load URL from alternative path:", err);
-          mainWindow.loadFile(altPath).catch((loadFileErr) => {
+          mainWindow?.loadFile(altPath).catch((loadFileErr) => {
             console.error("Failed to load file:", loadFileErr);
           });
         });
@@ -128,10 +132,62 @@ function createWindow() {
 
   mainWindow.once("ready-to-show", () => {
     console.log("Window ready to show");
-    mainWindow.show();
+    mainWindow!.show();
     if (isDev) {
-      mainWindow.webContents.openDevTools();
+      mainWindow!.webContents.openDevTools();
     }
+  });
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+
+  return mainWindow;
+}
+
+// Initialize auto-updater (only in production packaged app)
+function setupAutoUpdater() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.autoDownload = false; // Let user choose to download
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  try {
+    autoUpdater.checkForUpdates();
+  } catch (err) {
+    console.warn("Auto-updater check failed:", err);
+  }
+
+  // Check periodically (every 4 hours)
+  setInterval(() => {
+    try {
+      autoUpdater.checkForUpdates();
+    } catch (err) {
+      console.warn("Periodic update check failed:", err);
+    }
+  }, 4 * 60 * 60 * 1000);
+
+  autoUpdater.on("update-available", (info) => {
+    console.log("Update available:", info.version);
+    mainWindow?.webContents.send("update-available", {
+      version: info.version,
+      releaseDate: info.releaseDate,
+      releaseNotes: info.releaseNotes,
+    });
+  });
+
+  autoUpdater.on("update-downloaded", () => {
+    console.log("Update downloaded, ready to install");
+    mainWindow?.webContents.send("update-downloaded");
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    console.log("No update available");
+  });
+
+  autoUpdater.on("error", (err) => {
+    console.error("Auto-updater error:", err);
+    mainWindow?.webContents.send("update-error", err?.message || String(err));
   });
 }
 
@@ -141,6 +197,7 @@ app.whenReady().then(async () => {
   await initializeDatabaseConnection();
   
   createWindow();
+  setupAutoUpdater();
 
   app.on("activate", () => {
     // On macOS it's common to re-create a window in the app when the
@@ -3847,53 +3904,99 @@ ipcMain.handle("restart-app", () => {
   }
 });
 
-// Seed database with default company data
-ipcMain.handle("seed-database", async (_event, config: DatabaseConfig, clearExisting: boolean = false) => {
+// Auto-updater: check for updates
+ipcMain.handle("check-for-updates", async () => {
+  if (!app.isPackaged) return { success: false, error: "Not available in development" };
   try {
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, updateInfo: result?.updateInfo };
+  } catch (error) {
+    console.error("Check for updates failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+});
+
+// Auto-updater: download update (called when user confirms)
+ipcMain.handle("download-update", async () => {
+  if (!app.isPackaged) return { success: false, error: "Not available in development" };
+  try {
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    console.error("Download update failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+});
+
+// Auto-updater: quit and install (restart with new version)
+ipcMain.handle("quit-and-install", () => {
+  if (!app.isPackaged) return { success: false, error: "Not available in development" };
+  try {
+    autoUpdater.quitAndInstall(false, true);
+    return { success: true };
+  } catch (error) {
+    console.error("Quit and install failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+});
+
+// Seed database or add sample company (multi-company: creates new without overwriting)
+ipcMain.handle("seed-database", async (_event, config: DatabaseConfig, options?: { category?: string; all?: boolean }) => {
+  try {
+    const loadAll = options?.all === true;
+    const category = (options?.category || "grocery") as "grocery" | "pharmacy" | "electronics" | "retail";
+    const validCategories = ["grocery", "pharmacy", "electronics", "retail"];
+    if (!loadAll && !validCategories.includes(category)) {
+      return { success: false, error: `Invalid category: ${category}` };
+    }
+
     console.log("🌱 Starting database seed via IPC...");
-    
-    // Create a new Sequelize instance for this database config
     const sequelize = SequelizeConfig.createSequelize(config);
     initializeAllModels(sequelize);
-    
-    // Configure SQLite if needed
+
     if (config.type === "sqlite") {
       await SequelizeConfig.configureSQLite(sequelize);
     }
-    
-    // Test connection
+
     await sequelize.authenticate();
     console.log("✅ Database connection established for seeding");
-    
-    // Sync database schema (create tables if they don't exist)
+
     console.log("📋 Syncing database schema...");
     await sequelize.sync({ alter: false, force: false });
     console.log("✅ Database schema synchronized");
-    
-    // Check if data already exists
+
     const existingCompany = await Company.findOne();
-    
-    if (existingCompany && clearExisting) {
-      console.log("⚠️  Clearing existing data...");
-      await SeedService.clearDatabase(sequelize);
-    } else if (existingCompany && !clearExisting) {
-      await sequelize.close();
-      return {
-        success: false,
-        error: "Database already contains data. Set clearExisting to true to overwrite.",
-      };
+
+    if (loadAll) {
+      // Add all 4 sample companies (Grocery, Pharmacy, Electronics, Retail)
+      const categories: Array<"grocery" | "pharmacy" | "electronics" | "retail"> = ["grocery", "pharmacy", "electronics", "retail"];
+      for (const cat of categories) {
+        if (!existingCompany && cat === "grocery") {
+          await SeedService.seedDatabase(sequelize);
+        } else {
+          await SeedService.addSampleCompany(sequelize, cat);
+        }
+      }
+    } else if (!existingCompany) {
+      await SeedService.seedDatabase(sequelize);
+    } else {
+      await SeedService.addSampleCompany(sequelize, category);
     }
-    
-    // Seed the database
-    await SeedService.seedDatabase(sequelize);
-    
-    // Close the connection
+
     await sequelize.close();
-    
-    console.log("✅ Database seeding completed successfully");
+    console.log("✅ Sample company(ies) created successfully");
     return {
       success: true,
-      message: "Database seeded successfully with default company data",
+      message: loadAll ? "All sample companies created successfully" : "Sample company created successfully",
     };
   } catch (error) {
     console.error("❌ Error seeding database:", error);

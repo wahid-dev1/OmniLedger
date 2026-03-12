@@ -1,6 +1,7 @@
 /**
  * Seed Service
  * Populates database with dummy data for testing and development
+ * Supports multi-company: add sample companies by category without overwriting existing data
  */
 
 import { Sequelize } from "sequelize";
@@ -20,293 +21,106 @@ import { PurchaseItem } from "../database/models/PurchaseItem";
 import { PurchasePayment } from "../database/models/PurchasePayment";
 import { Transaction } from "../database/models/Transaction";
 import { DEFAULT_CURRENCY } from "../shared/constants";
+import type { SampleCategory } from "../shared/sample-categories";
+import { SAMPLE_CATEGORIES } from "./sample-templates";
 
 export class SeedService {
   /**
-   * Seed database with dummy company and related data
+   * Seed database with default company (grocery) when empty
    */
   static async seedDatabase(sequelize: Sequelize): Promise<void> {
     console.log("🌱 Starting database seed...");
 
-    // Check if data already exists
     const existingCompany = await Company.findOne();
     if (existingCompany) {
-      console.log("⚠️  Database already contains data. Skipping seed to prevent duplicates.");
-      console.log(`   Found existing company: ${existingCompany.name}`);
+      console.log("⚠️  Database already contains data. Use addSampleCompany to add more.");
       return;
     }
 
-    // For SQLite, disable foreign key checks temporarily during seeding
-    // This is needed because areaCode references Area.code (not Area.id), which SQLite doesn't support
-    if (sequelize.getDialect() === 'sqlite') {
-      await sequelize.query('PRAGMA foreign_keys = OFF');
+    await this.addSampleCompany(sequelize, "grocery");
+  }
+
+  /**
+   * Add a new sample company by category - never overwrites existing data
+   */
+  static async addSampleCompany(sequelize: Sequelize, category: SampleCategory): Promise<void> {
+    const template = SAMPLE_CATEGORIES[category];
+    if (!template) {
+      throw new Error(`Unknown sample category: ${category}`);
     }
 
-    // Create Company - Grocery Agency (Pakistan)
+    console.log(`🌱 Adding sample company: ${template.company.name} (${category})`);
+
+    if (sequelize.getDialect() === "sqlite") {
+      await sequelize.query("PRAGMA foreign_keys = OFF");
+    }
+
     const company = await Company.create({
-        name: "Prime Grocery Agency",
-        address: "Plot 15, Block 7, Gulberg III, Lahore, Punjab 54000",
-        phone: "+92-42-35761234",
-        email: "info@primegrocery.pk",
-        currency: DEFAULT_CURRENCY,
+      ...template.company,
+      currency: DEFAULT_CURRENCY,
     } as any);
     const companyData = company.toJSON();
     console.log("✅ Created company:", companyData.name);
 
-    // Create Users
-    await User.create({
-        email: "admin@primegrocery.pk",
-        name: "Ahmed Khan",
-        password: "hashed_password_admin", // TODO: Hash this properly
-        role: "admin",
-        companyId: companyData.id,
-    } as any);
-
-    await User.create({
-        email: "manager@primegrocery.pk",
-        name: "Fatima Ali",
-        password: "hashed_password_manager",
-        role: "manager",
-        companyId: companyData.id,
-    } as any);
-
-    await User.create({
-        email: "cashier@primegrocery.pk",
-        name: "Hassan Raza",
-        password: "hashed_password_cashier",
-        role: "cashier",
-        companyId: companyData.id,
-    } as any);
-    console.log("✅ Created users (admin, manager, cashier)");
-
-    // Create Products - Pakistani Grocery Items
-    const products = [
-      {
-        sku: "PKR-001",
-        name: "Sella Basmati Rice",
-        description: "Super Kernel Basmati Rice, 5kg bag",
-        category: "Staples",
-      },
-      {
-        sku: "PKR-002",
-        name: "Chana Dal",
-        description: "Split chickpeas, 1kg",
-        category: "Pulses & Lentils",
-      },
-      {
-        sku: "PKR-003",
-        name: "Moong Dal",
-        description: "Split mung beans, 1kg",
-        category: "Pulses & Lentils",
-      },
-      {
-        sku: "PKR-004",
-        name: "Cooking Oil",
-        description: "Dalda Banaspati Ghee, 1kg",
-        category: "Cooking Oil",
-      },
-      {
-        sku: "PKR-005",
-        name: "Rooh Afza",
-        description: "Sharbat concentrate, 800ml",
-        category: "Beverages",
-      },
-      {
-        sku: "PKR-006",
-        name: "Pakola Ice Cola",
-        description: "Pakola soft drink, 250ml",
-        category: "Beverages",
-      },
-      {
-        sku: "PKR-007",
-        name: "Tapal Danedar Tea",
-        description: "Tea leaves, 400g",
-        category: "Beverages",
-      },
-      {
-        sku: "PKR-008",
-        name: "Sugar",
-        description: "White refined sugar, 2kg",
-        category: "Staples",
-      },
-      {
-        sku: "PKR-009",
-        name: "Chakki Atta",
-        description: "Stone-ground wheat flour, 10kg",
-        category: "Staples",
-      },
-      {
-        sku: "PKR-010",
-        name: "Red Chilli Powder",
-        description: "Lal mirch powder, 200g",
-        category: "Spices",
-      },
-      {
-        sku: "PKR-011",
-        name: "Turmeric Powder",
-        description: "Haldi powder, 200g",
-        category: "Spices",
-      },
-      {
-        sku: "PKR-012",
-        name: "National Chicken Tikka Masala",
-        description: "Instant masala mix, 200g",
-        category: "Spices",
-      },
-      {
-        sku: "PKR-013",
-        name: "Nestle Everyday Tea Creamer",
-        description: "Tea whitener, 200g",
-        category: "Dairy",
-      },
-      {
-        sku: "PKR-014",
-        name: "Kurkure Masala Munch",
-        description: "Crunchy snack, 60g",
-        category: "Snacks",
-      },
-      {
-        sku: "PKR-015",
-        name: "Peek Freans Sooper",
-        description: "Cream biscuits, 130g",
-        category: "Snacks",
-      },
-      {
-        sku: "PKR-016",
-        name: "Desi Ghee",
-        description: "Pure cow ghee, 1kg",
-        category: "Cooking Oil",
-      },
-    ];
+    // Use company ID in email to ensure uniqueness when adding multiple sample companies
+    const emailSuffix = `${companyData.id}@sample.local`;
+    await User.create({ email: `admin+${emailSuffix}`, name: "Admin User", password: "hashed_admin", role: "admin", companyId: companyData.id } as any);
+    await User.create({ email: `manager+${emailSuffix}`, name: "Manager", password: "hashed_manager", role: "manager", companyId: companyData.id } as any);
+    await User.create({ email: `cashier+${emailSuffix}`, name: "Cashier", password: "hashed_cashier", role: "cashier", companyId: companyData.id } as any);
+    console.log("✅ Created users");
 
     const createdProducts: Array<InstanceType<typeof Product>> = [];
-    for (const productData of products) {
-      const product = await Product.create({
-          ...productData,
-          companyId: companyData.id,
-      } as any);
+    for (const productData of template.products) {
+      const product = await Product.create({ ...productData, companyId: companyData.id } as any);
       createdProducts.push(product);
     }
     console.log(`✅ Created ${createdProducts.length} products`);
 
-    // Create Batches for Products
     const now = new Date();
     const batches: Array<InstanceType<typeof Batch>> = [];
-
     for (let i = 0; i < createdProducts.length; i++) {
       const product = createdProducts[i];
       const productData = product.toJSON();
-      const batchCount = Math.floor(Math.random() * 3) + 1; // 1-3 batches per product
-
+      const batchCount = Math.floor(Math.random() * 2) + 1;
       for (let j = 1; j <= batchCount; j++) {
         const manufacturingDate = new Date(now);
         manufacturingDate.setMonth(manufacturingDate.getMonth() - 2);
-
         const expiryDate = new Date(now);
         expiryDate.setMonth(expiryDate.getMonth() + 6);
-
-        const quantity = Math.floor(Math.random() * 100) + 20; // 20-120 units
-        // Purchase price is set per batch - using a random price for seed data
-        const purchasePrice = Math.random() * 20 + 5; // Random price between 5-25
-
+        const quantity = Math.floor(Math.random() * 80) + 20;
+        const purchasePrice = category === "electronics" ? Math.random() * 5000 + 500 : category === "pharmacy" ? Math.random() * 200 + 50 : Math.random() * 20 + 5;
         const batch = await Batch.create({
-            productId: productData.id,
-            batchNumber: `BATCH-${productData.sku}-${j}`,
-            quantity: quantity,
-            availableQuantity: quantity,
-            manufacturingDate: manufacturingDate,
-            expiryDate: expiryDate,
-            purchasePrice: purchasePrice,
-            companyId: companyData.id,
+          productId: productData.id,
+          batchNumber: `BATCH-${productData.sku}-${j}`,
+          quantity,
+          availableQuantity: quantity,
+          manufacturingDate,
+          expiryDate,
+          purchasePrice,
+          companyId: companyData.id,
         } as any);
         batches.push(batch);
       }
     }
     console.log(`✅ Created ${batches.length} batches`);
 
-    // Create Areas - Pakistani localities
-    const areas = [
-      { code: "LHR-01", name: "Gulberg III" },
-      { code: "LHR-02", name: "DHA Phase 5" },
-      { code: "LHR-03", name: "Model Town" },
-      { code: "LHR-04", name: "Saddar" },
-    ];
-
-    const createdAreas = [];
-    for (const areaData of areas) {
-      const area = await Area.create({
-          ...areaData,
-        companyId: companyData.id,
-      } as any);
+    const createdAreas: Array<{ toJSON: () => { code: string } }> = [];
+    for (const areaData of template.areas) {
+      const area = await Area.create({ ...areaData, companyId: companyData.id } as any);
       createdAreas.push(area);
     }
     console.log(`✅ Created ${createdAreas.length} areas`);
 
-    // Create Customers - Pakistani names
-    const areaCodes = createdAreas.map(a => a.toJSON().code);
-    const customers = [
-      {
-        name: "Muhammad Imran",
-        email: "imran.khan@email.com",
-        phone: "+92-300-1234567",
-        address: "45 F Block, Main Blvd, Gulberg III, Lahore",
-        areaCode: areaCodes[0],
-      },
-      {
-        name: "Ayesha Malik",
-        email: "ayesha.malik@email.com",
-        phone: "+92-321-9876543",
-        address: "House 12, Street 5, DHA Phase 5, Lahore",
-        areaCode: areaCodes[1],
-      },
-      {
-        name: "Abdul Rahman",
-        email: "abdul.rahman@email.com",
-        phone: "+92-333-5551234",
-        address: "Block C, Model Town, Lahore",
-        areaCode: areaCodes[2],
-      },
-      {
-        name: "Sana Khan",
-        email: "sana.khan@email.com",
-        phone: "+92-42-35876543",
-        address: "Shop 8, Anarkali Bazaar, Saddar, Lahore",
-        areaCode: areaCodes[3],
-      },
-    ];
-
-    const createdCustomers = [];
-    for (const customerData of customers) {
-      const customer = await Customer.create({
-          ...customerData,
-        companyId: companyData.id,
-      } as any);
+    const createdCustomers: Array<InstanceType<typeof Customer>> = [];
+    for (const customerData of template.customers) {
+      const customer = await Customer.create({ ...customerData, companyId: companyData.id } as any);
       createdCustomers.push(customer);
     }
     console.log(`✅ Created ${createdCustomers.length} customers`);
 
-    // Create Vendors - Pakistani wholesale suppliers
-    const vendors = [
-      {
-        name: "Karachi Wholesale Traders",
-        email: "orders@karachiwholesale.pk",
-        phone: "+92-21-35678901",
-        address: "Sabzi Mandi, Karachi, Sindh",
-      },
-      {
-        name: "Punjab Grocery Distributors",
-        email: "supply@punjabgrocery.pk",
-        phone: "+92-42-35123456",
-        address: "Akbari Mandi, Lahore, Punjab",
-      },
-    ];
-
-    const createdVendors = [];
-    for (const vendorData of vendors) {
-      const vendor = await Vendor.create({
-          ...vendorData,
-        companyId: companyData.id,
-      } as any);
+    const createdVendors: Array<InstanceType<typeof Vendor>> = [];
+    for (const vendorData of template.vendors) {
+      const vendor = await Vendor.create({ ...vendorData, companyId: companyData.id } as any);
       createdVendors.push(vendor);
     }
     console.log(`✅ Created ${createdVendors.length} vendors`);
@@ -524,10 +338,10 @@ export class SeedService {
       }> = [];
 
       // Create batches for each purchase item
+      const priceRange = category === "electronics" ? [500, 5000] : category === "pharmacy" ? [50, 200] : [5, 25];
       for (const product of selectedProducts) {
         const quantity = Math.floor(Math.random() * 50) + 10; // 10-60 units
-        // Generate a random purchase price for seed data
-        const unitPrice = Math.random() * 20 + 5; // Random price between 5-25
+        const unitPrice = Math.random() * (priceRange[1] - priceRange[0]) + priceRange[0];
         const itemTotal = unitPrice * quantity;
         const batchNumber = `PURCH-BATCH-${product.sku}-${i}-${purchaseItems.length + 1}`;
 
@@ -638,17 +452,10 @@ export class SeedService {
     }
     console.log(`✅ Created ${purchases.length} purchases with transactions`);
 
-    console.log("🎉 Database seeding completed successfully!");
-    console.log("\n📊 Summary:");
-    console.log(`   Company: ${companyData.name}`);
-    console.log(`   Users: 3 (admin, manager, cashier)`);
-    console.log(`   Products: ${createdProducts.length}`);
-    console.log(`   Batches: ${batches.length}`);
-    console.log(`   Customers: ${createdCustomers.length}`);
-    console.log(`   Vendors: ${createdVendors.length}`);
-    console.log(`   Accounts: ${createdAccounts.length}`);
-    console.log(`   Sales: ${sales.length}`);
-    console.log(`   Purchases: ${purchases.length}`);
+    if (sequelize.getDialect() === "sqlite") {
+      await sequelize.query("PRAGMA foreign_keys = ON");
+    }
+    console.log("🎉 Sample company added successfully!");
   }
 
   /**

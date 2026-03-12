@@ -4,14 +4,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/useAppStore";
 import type { Company } from "@shared/types";
-import { Building2, Plus, Database, Loader2 } from "lucide-react";
-import logo from "@/assets/logo.svg";
+import { Building2, Plus, Database, Loader2, Sparkles, Pencil } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SAMPLE_CATEGORY_OPTIONS, type SampleCategory } from "@shared/sample-categories";
 
 export function SplashScreen() {
   const navigate = useNavigate();
   const { databaseConfig, setDatabaseConfig, setCurrentCompany, setLoading, setError } = useAppStore();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingSample, setLoadingSample] = useState(false);
+  const [sampleCategory, setSampleCategory] = useState<SampleCategory>("grocery");
+  const [sampleError, setSampleError] = useState<string | null>(null);
   const [hasCheckedCompanies, setHasCheckedCompanies] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
@@ -98,6 +108,26 @@ export function SplashScreen() {
     navigate("/database/config");
   };
 
+  const handleLoadSampleCompany = async (loadAll = false) => {
+    if (!databaseConfig) return;
+    setLoadingSample(true);
+    setSampleError(null);
+    setError(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (window as any).electronAPI?.seedDatabase(databaseConfig, loadAll ? { all: true } : { category: sampleCategory });
+      if (result?.success) {
+        await loadCompanies();
+      } else {
+        setSampleError(result?.error || "Failed to load sample company");
+      }
+    } catch (error) {
+      setSampleError(error instanceof Error ? error.message : "Failed to load sample company");
+    } finally {
+      setLoadingSample(false);
+    }
+  };
+
   // Show loading state while checking for companies
   if (!hasCheckedCompanies || loadingCompanies) {
     return (
@@ -157,9 +187,23 @@ export function SplashScreen() {
                   onClick={() => handleCompanySelect(company)}
                 >
                   <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <Building2 className="h-5 w-5 text-muted-foreground" />
-                      <CardTitle className="text-lg">{company.name}</CardTitle>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <CardTitle className="text-lg truncate">{company.name}</CardTitle>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/company/${company.id}/edit`);
+                        }}
+                        title="Edit company"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -200,7 +244,43 @@ export function SplashScreen() {
                   accounting data. Each company maintains its own separate
                   records.
                 </p>
-                <div className="flex justify-end pt-4">
+                <div className="flex flex-wrap items-center justify-end gap-3 pt-4">
+                  <Select value={sampleCategory} onValueChange={(v) => setSampleCategory(v as SampleCategory)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SAMPLE_CATEGORY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleLoadSampleCompany(false)}
+                    disabled={loadingSample}
+                  >
+                    {loadingSample ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    Load Sample Company
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => handleLoadSampleCompany(true)}
+                    disabled={loadingSample}
+                  >
+                    {loadingSample ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    Load All Sample Companies
+                  </Button>
                   <Button onClick={handleNewCompany}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create New Company
@@ -211,7 +291,50 @@ export function SplashScreen() {
           </Card>
         )}
 
-        <div className="mt-8 flex justify-center gap-4">
+        {sampleError && (
+          <div className="mt-4 mx-auto max-w-xl p-3 bg-destructive/10 text-destructive text-sm rounded-md text-center">
+            {sampleError}
+          </div>
+        )}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+          <Select value={sampleCategory} onValueChange={(v) => setSampleCategory(v as SampleCategory)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              {SAMPLE_CATEGORY_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={() => handleLoadSampleCompany(false)}
+            disabled={loadingSample}
+            className="flex items-center gap-2"
+          >
+            {loadingSample ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Load Sample Company
+          </Button>
+          <Button
+            variant="default"
+            onClick={() => handleLoadSampleCompany(true)}
+            disabled={loadingSample}
+            className="flex items-center gap-2"
+          >
+            {loadingSample ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Load All Sample Companies
+          </Button>
           <Button
             variant="outline"
             onClick={handleConfigureDatabase}

@@ -70,9 +70,28 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("run-database-migrations", config),
   checkMigrationNeeded: (config: any) =>
     ipcRenderer.invoke("check-migration-needed", config),
-  seedDatabase: (config: any, clearExisting?: boolean) =>
-    ipcRenderer.invoke("seed-database", config, clearExisting),
+  seedDatabase: (config: any, options?: { category?: string; all?: boolean }) =>
+    ipcRenderer.invoke("seed-database", config, options),
   restartApp: () => ipcRenderer.invoke("restart-app"),
+  // Auto-updater
+  checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+  downloadUpdate: () => ipcRenderer.invoke("download-update"),
+  quitAndInstall: () => ipcRenderer.invoke("quit-and-install"),
+  onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string | string[] }) => void) => {
+    const handler = (_: unknown, info: { version: string; releaseDate?: string; releaseNotes?: string | string[] }) => callback(info);
+    ipcRenderer.on("update-available", handler);
+    return () => ipcRenderer.removeListener("update-available", handler);
+  },
+  onUpdateDownloaded: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on("update-downloaded", handler);
+    return () => ipcRenderer.removeListener("update-downloaded", handler);
+  },
+  onUpdateError: (callback: (error: string) => void) => {
+    const handler = (_: unknown, error: string) => callback(error);
+    ipcRenderer.on("update-error", handler);
+    return () => ipcRenderer.removeListener("update-error", handler);
+  },
   // Mobile API Server
   startMobileServer: (config: any) => ipcRenderer.invoke("mobile-server:start", config),
   stopMobileServer: () => ipcRenderer.invoke("mobile-server:stop"),
@@ -143,8 +162,14 @@ export type ElectronAPI = {
   initializeDatabaseSchema: (config: any) => Promise<{ success: boolean; migrated?: boolean; seeded?: boolean; error?: string }>;
   runDatabaseMigrations: (config: any) => Promise<{ success: boolean; error?: string }>;
   checkMigrationNeeded: (config: any) => Promise<{ needed: boolean; currentVersion?: string | null; requiredVersion: string; error?: string }>;
-  seedDatabase: (config: any, clearExisting?: boolean) => Promise<{ success: boolean; message?: string; error?: string }>;
+  seedDatabase: (config: any, options?: { category?: string; all?: boolean }) => Promise<{ success: boolean; message?: string; error?: string }>;
   restartApp: () => Promise<{ success: boolean; error?: string }>;
+  checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
+  downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
+  quitAndInstall: () => Promise<{ success: boolean; error?: string }>;
+  onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string | string[] }) => void) => () => void;
+  onUpdateDownloaded: (callback: () => void) => () => void;
+  onUpdateError: (callback: (error: string) => void) => () => void;
   // Mobile API Server
   startMobileServer: (config: any) => Promise<{ success: boolean; error?: string; port?: number; apiKey?: string }>;
   stopMobileServer: () => Promise<{ success: boolean; error?: string }>;

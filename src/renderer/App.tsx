@@ -1,4 +1,5 @@
 import { HashRouter, Routes, Route } from "react-router-dom";
+import { UpdateNotifier } from "@/components/UpdateNotifier";
 import { CompanyConfiguration } from "@/components/CompanyConfiguration";
 import { DatabaseConfiguration } from "@/components/DatabaseConfiguration";
 import { SplashScreen } from "@/components/SplashScreen";
@@ -33,6 +34,7 @@ function App() {
   // BrowserRouter uses pathname which becomes /.../index.html under file:// and breaks route matching.
   return (
     <HashRouter>
+      <UpdateNotifier />
       <div className="min-h-screen bg-background">
         <Routes>
           <Route path="/" element={<LandingPage />} />

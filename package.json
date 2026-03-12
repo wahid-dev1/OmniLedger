@@ -1,6 +1,6 @@
 {
   "name": "omniledger",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Desktop Inventory & Accounting System",
   "main": "dist-electron/main/main.js",
   "author": "wahid-dev1",
@@ -146,6 +146,11 @@
   "build": {
     "appId": "com.omniledger.app",
     "productName": "OmniLedger",
+    "publish": {
+      "provider": "github",
+      "owner": "wahid-dev1",
+      "repo": "omniledger"
+    },
     "directories": {
       "output": "release"
     },
