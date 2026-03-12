@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,9 +28,11 @@ const CURRENCIES = [
 
 export function CompanyConfiguration() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { companyId } = useParams<{ companyId: string }>();
   const { setCurrentCompany, setError, databaseConfig } = useAppStore();
   const isEditMode = Boolean(companyId);
+  const copyFrom = (location.state as { copyFrom?: { name?: string; address?: string; phone?: string; email?: string; currency?: string } } | null)?.copyFrom;
   const [isLoading, setIsLoading] = useState(false);
   const [loadingCompany, setLoadingCompany] = useState(isEditMode);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -47,6 +49,18 @@ export function CompanyConfiguration() {
       loadCompany();
     }
   }, [companyId]);
+
+  useEffect(() => {
+    if (!isEditMode && copyFrom) {
+      setFormData({
+        name: copyFrom.name?.trim() ? `${copyFrom.name.trim()} (Copy)` : "",
+        address: copyFrom.address || "",
+        phone: copyFrom.phone || "",
+        email: copyFrom.email || "",
+        currency: copyFrom.currency || DEFAULT_CURRENCY,
+      });
+    }
+  }, [isEditMode, copyFrom]);
 
   const loadCompany = async () => {
     if (!companyId) return;

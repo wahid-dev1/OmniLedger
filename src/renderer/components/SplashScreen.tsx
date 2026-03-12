@@ -1,22 +1,23 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Building2, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/useAppStore";
 import type { Company } from "@shared/types";
-import { Building2, Plus, Database, Loader2, Sparkles, Pencil } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { SAMPLE_CATEGORY_OPTIONS, type SampleCategory } from "@shared/sample-categories";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CompanyCard, SearchBar, SystemSetupPanel } from "./companies";
+import type { SampleCategory } from "@shared/sample-categories";
 
 export function SplashScreen() {
   const navigate = useNavigate();
-  const { databaseConfig, setDatabaseConfig, setCurrentCompany, setLoading, setError } = useAppStore();
+  const { databaseConfig, setCurrentCompany, setError } = useAppStore();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [loadingSample, setLoadingSample] = useState(false);
@@ -24,27 +25,28 @@ export function SplashScreen() {
   const [sampleError, setSampleError] = useState<string | null>(null);
   const [hasCheckedCompanies, setHasCheckedCompanies] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    // If no database config, redirect to landing page
     if (!databaseConfig) {
       navigate("/", { replace: true });
       return;
     }
 
-    // Set a timeout to ensure we show something even if the API call hangs
     const timeout = setTimeout(() => {
       if (!hasCheckedCompanies) {
         setInitError("Timeout waiting for database connection");
         setLoadingCompanies(false);
         setHasCheckedCompanies(true);
       }
-    }, 5000); // 5 second timeout
-    
+    }, 5000);
+
     loadCompanies().finally(() => {
       clearTimeout(timeout);
     });
-    
+
     return () => clearTimeout(timeout);
   }, [databaseConfig, navigate]);
 
@@ -53,47 +55,51 @@ export function SplashScreen() {
     setError(null);
 
     try {
-      // Check if electronAPI is available
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (!(window as any).electronAPI) {
-        console.error("electronAPI is not available!");
-        setError("Electron API is not available. Please ensure the app is running in Electron.");
-        setLoadingCompanies(false);
-        setHasCheckedCompanies(true);
+        setError("Electron API is not available.");
+        setCompanies([]);
         return;
       }
 
-      // Call IPC to get companies from main process
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (window as any).electronAPI.getCompanies();
-      
+
       if (result?.success && result.data) {
-        // Map Prisma data to Company type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mappedCompanies: Company[] = result.data.map((c: any) => ({
           id: c.id,
           name: c.name,
           address: c.address || undefined,
           phone: c.phone || undefined,
           email: c.email || undefined,
+          currency: c.currency || "PKR",
           createdAt: new Date(c.createdAt),
           updatedAt: new Date(c.updatedAt),
         }));
         setCompanies(mappedCompanies);
       } else {
         setError(result?.error || "Failed to load companies");
-      setCompanies([]);
+        setCompanies([]);
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to load companies";
-      setError(errorMessage);
-      console.error("Error loading companies:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to load companies"
+      );
+      setCompanies([]);
     } finally {
       setLoadingCompanies(false);
       setHasCheckedCompanies(true);
     }
   };
+
+  const filteredCompanies = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return companies;
+    return companies.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.email?.toLowerCase() ?? "").includes(q) ||
+        (c.phone ?? "").toLowerCase().includes(q)
+    );
+  }, [companies, searchQuery]);
 
   const handleCompanySelect = (company: Company) => {
     setCurrentCompany(company);
@@ -102,6 +108,44 @@ export function SplashScreen() {
 
   const handleNewCompany = () => {
     navigate("/company/new");
+  };
+
+  const handleEditCompany = (company: Company) => {
+    navigate(`/company/${company.id}/edit`);
+  };
+
+  const handleDuplicateCompany = (company: Company) => {
+    navigate("/company/new", { state: { copyFrom: company } });
+  };
+
+  const handleRequestDeleteCompany = (company: Company) => {
+    setCompanyToDelete(company);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!companyToDelete) return;
+    setDeleting(true);
+    try {
+      const result = await (window as any).electronAPI?.deleteCompany(
+        companyToDelete.id
+      );
+      if (result?.success) {
+        await loadCompanies();
+        setCompanyToDelete(null);
+      } else {
+        setError(result?.error || "Failed to delete company");
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to delete company"
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setCompanyToDelete(null);
   };
 
   const handleConfigureDatabase = () => {
@@ -114,33 +158,38 @@ export function SplashScreen() {
     setSampleError(null);
     setError(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (window as any).electronAPI?.seedDatabase(databaseConfig, loadAll ? { all: true } : { category: sampleCategory });
+      const result = await (window as any).electronAPI?.seedDatabase(
+        databaseConfig,
+        loadAll ? { all: true } : { category: sampleCategory }
+      );
       if (result?.success) {
         await loadCompanies();
       } else {
         setSampleError(result?.error || "Failed to load sample company");
       }
     } catch (error) {
-      setSampleError(error instanceof Error ? error.message : "Failed to load sample company");
+      setSampleError(
+        error instanceof Error ? error.message : "Failed to load sample company"
+      );
     } finally {
       setLoadingSample(false);
     }
   };
 
-  // Show loading state while checking for companies
   if (!hasCheckedCompanies || loadingCompanies) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="space-y-4 text-center">
           {initError ? (
             <>
-              <p className="text-destructive font-bold">{initError}</p>
-              <p className="text-muted-foreground">Please check your database configuration.</p>
+              <p className="font-bold text-destructive">{initError}</p>
+              <p className="text-muted-foreground">
+                Please check your database configuration.
+              </p>
             </>
           ) : (
             <>
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
               <p className="text-muted-foreground">Loading companies...</p>
             </>
           )}
@@ -149,203 +198,158 @@ export function SplashScreen() {
     );
   }
 
-  // If no database config, redirect (handled in useEffect, but show loading in case)
   if (!databaseConfig) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  // If database config exists, show companies or option to create new
-  return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">OmniLedger</h1>
-          <p className="text-muted-foreground text-lg">
-            Desktop Inventory & Accounting System
-          </p>
-        </div>
+  const hasCompanies = companies.length > 0;
+  const hasFilteredResults = filteredCompanies.length > 0;
 
-        {companies.length > 0 ? (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Your Companies</h2>
-              <Button onClick={handleNewCompany}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Company
+  return (
+    <div className="min-h-screen bg-background p-6 sm:p-8">
+      <div className="mx-auto max-w-6xl">
+        {/* Compact header */}
+        <header className="mb-6">
+          <h1 className="text-base font-medium tracking-tight text-muted-foreground">
+            OmniLedger{" "}
+            <span className="text-muted-foreground/80">
+              | Inventory & Accounting System
+            </span>
+          </h1>
+        </header>
+
+        {/* System Setup panel - 24px below header */}
+        <SystemSetupPanel
+          sampleCategory={sampleCategory}
+          onSampleCategoryChange={setSampleCategory}
+          onLoadSampleCompany={() => handleLoadSampleCompany(false)}
+          onLoadAllSampleCompanies={() => handleLoadSampleCompany(true)}
+          onOpenDatabaseSettings={handleConfigureDatabase}
+          loadingSample={loadingSample}
+        />
+
+        {/* Companies section - 32px below System Setup */}
+        <section aria-label="Companies" className="mt-8">
+          <div className="mb-4 flex items-baseline justify-between gap-4">
+            <h2 className="text-base font-semibold">
+              Your Companies{" "}
+              <span className="font-normal text-muted-foreground">
+                ({companies.length})
+              </span>
+            </h2>
+            <Button onClick={handleNewCompany} size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              New Company
+            </Button>
+          </div>
+
+          {hasCompanies && (
+            <div className="mb-4">
+              <SearchBar value={searchQuery} onChange={setSearchQuery} />
+            </div>
+          )}
+
+          {!hasCompanies ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-muted-foreground/30 bg-card p-8 text-center shadow-sm">
+              <Building2 className="mb-4 h-12 w-12 text-muted-foreground" />
+              <h3 className="mb-2 text-lg font-semibold">No companies yet</h3>
+              <p className="mb-6 max-w-md text-sm text-muted-foreground">
+                Create your first company to start managing inventory and
+                accounting.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button onClick={handleNewCompany}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Company
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleLoadSampleCompany(false)}
+                  disabled={loadingSample}
+                >
+                  {loadingSample ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Load Sample Company
+                </Button>
+              </div>
+            </div>
+          ) : hasFilteredResults ? (
+            <>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Showing {filteredCompanies.length} of {companies.length}{" "}
+                companies
+              </p>
+              <div className="grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+                {filteredCompanies.map((company) => (
+                  <CompanyCard
+                    key={company.id}
+                    company={company}
+                    onOpen={handleCompanySelect}
+                    onEdit={handleEditCompany}
+                    onDuplicate={handleDuplicateCompany}
+                    onDelete={handleRequestDeleteCompany}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-muted-foreground/30 bg-card p-8 text-center shadow-sm">
+              <h3 className="mb-2 text-base font-semibold">
+                No companies match your search
+              </h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Try a different name, phone, or email, or clear the search.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => setSearchQuery("")}
+              >
+                Clear search
               </Button>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {companies.map((company) => (
-                <Card
-                  key={company.id}
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => handleCompanySelect(company)}
-                >
-                  <CardHeader>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
-                        <CardTitle className="text-lg truncate">{company.name}</CardTitle>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/company/${company.id}/edit`);
-                        }}
-                        title="Edit company"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      {company.address && (
-                        <p className="truncate">{company.address}</p>
-                      )}
-                      {company.phone && <p>{company.phone}</p>}
-                      {company.email && (
-                        <p className="truncate">{company.email}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Created: {company.createdAt.toLocaleDateString()}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+          {sampleError && (
+            <div className="mt-4 rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive">
+              {sampleError}
             </div>
-          </div>
-        ) : (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Building2 className="h-6 w-6 text-muted-foreground" />
-                <div>
-                  <CardTitle>No Companies Found</CardTitle>
-                  <CardDescription>
-                    Get started by creating your first company.
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  A company is required to organize your inventory, sales, and
-                  accounting data. Each company maintains its own separate
-                  records.
-                </p>
-                <div className="flex flex-wrap items-center justify-end gap-3 pt-4">
-                  <Select value={sampleCategory} onValueChange={(v) => setSampleCategory(v as SampleCategory)}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SAMPLE_CATEGORY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleLoadSampleCompany(false)}
-                    disabled={loadingSample}
-                  >
-                    {loadingSample ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4 mr-2" />
-                    )}
-                    Load Sample Company
-                  </Button>
-                  <Button
-                    variant="default"
-                    onClick={() => handleLoadSampleCompany(true)}
-                    disabled={loadingSample}
-                  >
-                    {loadingSample ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4 mr-2" />
-                    )}
-                    Load All Sample Companies
-                  </Button>
-                  <Button onClick={handleNewCompany}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create New Company
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {sampleError && (
-          <div className="mt-4 mx-auto max-w-xl p-3 bg-destructive/10 text-destructive text-sm rounded-md text-center">
-            {sampleError}
-          </div>
-        )}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-          <Select value={sampleCategory} onValueChange={(v) => setSampleCategory(v as SampleCategory)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              {SAMPLE_CATEGORY_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            onClick={() => handleLoadSampleCompany(false)}
-            disabled={loadingSample}
-            className="flex items-center gap-2"
-          >
-            {loadingSample ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            Load Sample Company
-          </Button>
-          <Button
-            variant="default"
-            onClick={() => handleLoadSampleCompany(true)}
-            disabled={loadingSample}
-            className="flex items-center gap-2"
-          >
-            {loadingSample ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            Load All Sample Companies
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleConfigureDatabase}
-            className="flex items-center gap-2"
-          >
-            <Database className="h-4 w-4" />
-            Database Settings
-          </Button>
-        </div>
+          )}
+        </section>
       </div>
+
+      {/* Delete confirmation modal */}
+      <Dialog open={!!companyToDelete} onOpenChange={(open) => !open && handleCancelDelete()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete company?</DialogTitle>
+            <DialogDescription>
+              {companyToDelete
+                ? `Are you sure you want to delete "${companyToDelete.name}"? This will permanently delete all data for this company. This action cannot be undone.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelDelete}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Delete company
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

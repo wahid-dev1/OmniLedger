@@ -46,9 +46,10 @@ export class DatabaseService {
     initializeAllModels(sequelize);
 
     // Configure SQLite with PRAGMA settings for better concurrency (non-blocking)
-    // This helps prevent "database is locked" errors
-    if (config.type === 'sqlite') {
-      // Configure asynchronously - this ensures WAL mode and busy timeout are set
+    // Skip for temporary connections (e.g. temp-version-check) - they are closed quickly
+    // and async configureSQLite would race with disconnect → SQLITE_MISUSE / closed handle
+    const isTemporaryConnection = userId.startsWith('temp-');
+    if (config.type === 'sqlite' && !isTemporaryConnection) {
       SequelizeConfig.configureSQLite(sequelize).catch((error) => {
         console.error('Failed to configure SQLite settings:', error);
         // Don't throw - connection will still work, just without optimizations
