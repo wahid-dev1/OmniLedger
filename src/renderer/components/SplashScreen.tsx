@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/stores/useAppStore";
 import type { Company } from "@shared/types";
-import { Building2, Plus, Database, Loader2 } from "lucide-react";
+import { Building2, Plus, Database, Loader2, Sparkles } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
 export function SplashScreen() {
@@ -12,6 +12,7 @@ export function SplashScreen() {
   const { databaseConfig, setDatabaseConfig, setCurrentCompany, setLoading, setError } = useAppStore();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingSample, setLoadingSample] = useState(false);
   const [hasCheckedCompanies, setHasCheckedCompanies] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
@@ -96,6 +97,25 @@ export function SplashScreen() {
 
   const handleConfigureDatabase = () => {
     navigate("/database/config");
+  };
+
+  const handleLoadSampleCompany = async () => {
+    if (!databaseConfig) return;
+    setLoadingSample(true);
+    setError(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (window as any).electronAPI?.seedDatabase(databaseConfig, false);
+      if (result?.success) {
+        await loadCompanies();
+      } else {
+        setError(result?.error || "Failed to load sample company");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to load sample company");
+    } finally {
+      setLoadingSample(false);
+    }
   };
 
   // Show loading state while checking for companies
@@ -200,7 +220,19 @@ export function SplashScreen() {
                   accounting data. Each company maintains its own separate
                   records.
                 </p>
-                <div className="flex justify-end pt-4">
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadSampleCompany}
+                    disabled={loadingSample}
+                  >
+                    {loadingSample ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    Load Sample Company
+                  </Button>
                   <Button onClick={handleNewCompany}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create New Company
@@ -212,6 +244,19 @@ export function SplashScreen() {
         )}
 
         <div className="mt-8 flex justify-center gap-4">
+          <Button
+            variant="outline"
+            onClick={handleLoadSampleCompany}
+            disabled={loadingSample}
+            className="flex items-center gap-2"
+          >
+            {loadingSample ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Load Sample Company
+          </Button>
           <Button
             variant="outline"
             onClick={handleConfigureDatabase}
