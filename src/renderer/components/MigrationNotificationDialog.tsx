@@ -43,12 +43,17 @@ export function MigrationNotificationDialog({
       
       if (result?.success) {
         setMigrationSuccess(true);
-        // Wait a moment to show success message
-        setTimeout(() => {
-          if (onMigrationComplete) {
-            onMigrationComplete();
+        // Wait a moment to show success message, then restart app to fully apply changes
+        setTimeout(async () => {
+          try {
+            if (onMigrationComplete) {
+              onMigrationComplete();
+            }
+            await (window as any).electronAPI?.restartApp?.();
+          } catch {
+            // If restart fails, just close the dialog and let the user continue
+            handleClose();
           }
-          handleClose();
         }, 1500);
       } else {
         setMigrationError(result?.error || "Migration failed. Please try again.");
@@ -89,7 +94,7 @@ export function MigrationNotificationDialog({
           </DialogTitle>
           <DialogDescription>
             {migrationSuccess
-              ? "Your database has been successfully updated."
+              ? "Your database has been successfully updated. The application will now restart to apply changes."
               : "Your database schema needs to be updated to work with this version of OmniLedger."}
           </DialogDescription>
         </DialogHeader>
@@ -165,9 +170,7 @@ export function MigrationNotificationDialog({
         </div>
 
         <DialogFooter>
-          {migrationSuccess ? (
-            <Button onClick={handleClose}>Close</Button>
-          ) : (
+          {!migrationSuccess && (
             <>
               <Button
                 variant="outline"

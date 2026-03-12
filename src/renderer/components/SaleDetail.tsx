@@ -33,7 +33,7 @@ interface SaleItem {
     id: string;
     batchNumber: string;
     expiryDate?: string;
-  };
+  } | null;
 }
 
 interface Transaction {
@@ -622,15 +622,15 @@ export function SaleDetail() {
                                   <p className="text-xs text-muted-foreground mb-1">Batch Number</p>
                                   <p className="font-semibold flex items-center gap-1">
                                     <Boxes className="h-4 w-4" />
-                                    {item.batch.batchNumber}
+                                    {item.batch?.batchNumber ?? '—'}
                                   </p>
                                 </div>
-                                {item.batch.expiryDate && (
+                                {item.batch?.expiryDate && (
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Expiry Date</p>
                                     <p className="font-semibold flex items-center gap-1">
                                       <Calendar className="h-4 w-4" />
-                                      {new Date(item.batch.expiryDate).toLocaleDateString()}
+                                      {new Date(item.batch!.expiryDate).toLocaleDateString()}
                                     </p>
                                   </div>
                                 )}
@@ -978,7 +978,7 @@ export function SaleDetail() {
                 return {
                   sku: item.product.sku,
                   name: item.product.name,
-                  batchNumber: item.batch.batchNumber,
+                  batchNumber: item.batch?.batchNumber ?? '—',
                   quantity: item.quantity,
                   unitPrice: unitPrice,
                   totalPrice: totalPrice,
@@ -1030,7 +1030,7 @@ export function SaleDetail() {
               return {
                 sku: item.product.sku,
                 name: item.product.name,
-                batchNumber: item.batch.batchNumber,
+                batchNumber: item.batch?.batchNumber ?? '—',
                 quantity: item.quantity,
                 unitPrice: unitPrice,
                 totalPrice: totalPrice,

@@ -3832,6 +3832,21 @@ ipcMain.handle("check-migration-needed", async (_event, config: DatabaseConfig) 
   }
 });
 
+// Restart the Electron app (used after critical migrations)
+ipcMain.handle("restart-app", () => {
+  try {
+    app.relaunch();
+    app.exit(0);
+    return { success: true };
+  } catch (error) {
+    console.error("Error restarting app:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+});
+
 // Seed database with default company data
 ipcMain.handle("seed-database", async (_event, config: DatabaseConfig, clearExisting: boolean = false) => {
   try {

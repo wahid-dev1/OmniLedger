@@ -10,7 +10,7 @@ import type { DatabaseConfig } from '../shared/types';
 import { DatabaseService } from './database.service';
 
 // Current schema version - increment this when schema changes
-export const CURRENT_SCHEMA_VERSION = '1.4.0'; // unitOfMeasurement for products
+export const CURRENT_SCHEMA_VERSION = '1.5.0'; // test migration + previous changes
 
 export class DatabaseMigrationService {
   /**
@@ -547,6 +547,41 @@ export class DatabaseMigrationService {
             console.log("   ℹ️ SQLite: purchase_items column changes may need alter - model sync will handle new DBs");
           } else {
             console.error("   ⚠️ Error changing purchase_items columns:", e.message);
+          }
+        }
+      }
+
+      // Migration 1.5.0: Test migration - create simple log table (id, message, createdAt)
+      if (!currentVersion || this.compareVersions(currentVersion, '1.5.0') < 0) {
+        console.log("🔧 Running migration 1.5.0: Creating test_migration_log table for verification...");
+        const queryInterface = sequelize.getQueryInterface();
+        const DataTypes = (await import('sequelize')).DataTypes;
+
+        try {
+          await queryInterface.createTable('test_migration_log', {
+            id: {
+              type: DataTypes.UUID,
+              primaryKey: true,
+              defaultValue: DataTypes.UUIDV4,
+            },
+            message: {
+              type: DataTypes.STRING,
+              allowNull: false,
+              defaultValue: 'Migration 1.5.0 applied',
+            },
+            createdAt: {
+              type: DataTypes.DATE,
+              allowNull: false,
+              defaultValue: DataTypes.NOW,
+            },
+          });
+          console.log("   ✅ test_migration_log table created");
+        } catch (error: any) {
+          const msg = error?.message || '';
+          if (msg.includes('already exists') || msg.includes('Duplicate') || msg.includes('duplicate')) {
+            console.log("   ℹ️ test_migration_log table already exists");
+          } else {
+            console.error("   ⚠️ Error creating test_migration_log table:", msg);
           }
         }
       }

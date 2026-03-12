@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("check-migration-needed", config),
   seedDatabase: (config: any, clearExisting?: boolean) =>
     ipcRenderer.invoke("seed-database", config, clearExisting),
+  restartApp: () => ipcRenderer.invoke("restart-app"),
   // Mobile API Server
   startMobileServer: (config: any) => ipcRenderer.invoke("mobile-server:start", config),
   stopMobileServer: () => ipcRenderer.invoke("mobile-server:stop"),
@@ -143,6 +144,7 @@ export type ElectronAPI = {
   runDatabaseMigrations: (config: any) => Promise<{ success: boolean; error?: string }>;
   checkMigrationNeeded: (config: any) => Promise<{ needed: boolean; currentVersion?: string | null; requiredVersion: string; error?: string }>;
   seedDatabase: (config: any, clearExisting?: boolean) => Promise<{ success: boolean; message?: string; error?: string }>;
+  restartApp: () => Promise<{ success: boolean; error?: string }>;
   // Mobile API Server
   startMobileServer: (config: any) => Promise<{ success: boolean; error?: string; port?: number; apiKey?: string }>;
   stopMobileServer: () => Promise<{ success: boolean; error?: string }>;

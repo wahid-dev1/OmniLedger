@@ -129,6 +129,26 @@ export function DatabaseConfiguration() {
     }
   };
 
+  const handleCheckMigration = async () => {
+    if (!databaseConfig) return;
+    setSuccessMessage(null);
+    setError(null);
+    try {
+      const result = await (window as any).electronAPI?.checkMigrationNeeded(databaseConfig);
+      if (result) {
+        setMigrationNeeded(result);
+        if (result.needed) {
+          setShowMigrationDialog(true);
+        } else {
+          setSuccessMessage(`No migration needed. Database is up to date (v${result.currentVersion || result.requiredVersion}).`);
+          setTimeout(() => setSuccessMessage(null), 3000);
+        }
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to check migration status");
+    }
+  };
+
   // Check if existing config is available
   useEffect(() => {
     if (databaseConfig) {
@@ -859,17 +879,29 @@ export function DatabaseConfiguration() {
 
                 {/* Migration Status */}
                 {migrationStatus && databaseConfig.type !== 'sqlite' && (
-                  <div className="flex items-center gap-2 p-2 rounded border bg-muted/50 text-xs">
-                    {checkingMigration ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                    ) : migrationStatus.isUpToDate ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                    ) : (
-                      <AlertCircle className="h-3.5 w-3.5 text-yellow-600" />
-                    )}
-                    <span>
-                      Migration: {migrationStatus.isUpToDate ? 'Up to date' : 'Pending'}
-                    </span>
+                  <div className="flex items-center justify-between gap-2 p-2 rounded border bg-muted/50 text-xs">
+                    <div className="flex items-center gap-2">
+                      {checkingMigration ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                      ) : migrationStatus.isUpToDate ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                      ) : (
+                        <AlertCircle className="h-3.5 w-3.5 text-yellow-600" />
+                      )}
+                      <span>
+                        Migration: {migrationStatus.isUpToDate ? 'Up to date' : 'Pending'}
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      onClick={handleCheckMigration}
+                      disabled={checkingMigration}
+                    >
+                      Check
+                    </Button>
                   </div>
                 )}
 
