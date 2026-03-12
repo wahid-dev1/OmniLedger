@@ -49,7 +49,7 @@ export function validateConnectionConfig(config: DatabaseConfig): { valid: boole
   if (!config.host?.trim()) missing.push('Host');
   if (!config.database?.trim()) missing.push('Database');
   if (!config.username?.trim()) missing.push('Username');
-  if (!config.password) missing.push('Password');
+  // Password is optional (e.g. local MySQL with empty password)
 
   return { valid: missing.length === 0, missing: missing.length ? missing : undefined };
 }

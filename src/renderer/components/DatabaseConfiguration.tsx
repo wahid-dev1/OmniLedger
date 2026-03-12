@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -171,8 +172,8 @@ export function DatabaseConfiguration() {
         return;
       }
     } else {
-      if (!formData.host || !formData.database || !formData.username || !formData.password) {
-        setError("Please fill in all required fields (Host, Database, Username, Password) before saving as profile");
+      if (!formData.host || !formData.database || !formData.username) {
+        setError("Please fill in all required fields (Host, Database, Username) before saving as profile");
         return;
       }
     }
@@ -461,7 +462,7 @@ export function DatabaseConfiguration() {
           return;
         }
       } else {
-        if (!formData.host || !formData.database || !formData.username || !formData.password) {
+        if (!formData.host || !formData.database || !formData.username) {
           setError("Please fill in all required fields");
           setLoading(false);
           return;
@@ -613,202 +614,197 @@ export function DatabaseConfiguration() {
     
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
-        <div className="max-w-7xl mx-auto space-y-3">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto">
+          {/* Header - 24px bottom margin */}
+          <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+            <div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate("/")}
-                className="h-8"
+                className="h-8 -ml-2 text-muted-foreground hover:text-foreground"
               >
-                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                <ArrowLeft className="mr-1.5 h-4 w-4" />
                 Back to Companies
               </Button>
-              <div>
-                <h1 className="text-xl font-bold">Database Configuration</h1>
-                <p className="text-xs text-muted-foreground">Connect to a database or switch between saved connections</p>
-              </div>
+              <h1 className="mt-1 text-xl font-semibold">Database Configuration</h1>
+              <p className="text-sm text-muted-foreground">
+                Connect to a database or switch between saved connections
+              </p>
             </div>
             <Button
               onClick={() => setShowForm(true)}
               size="sm"
+              className="mt-3 shrink-0 sm:mt-0"
             >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add Connection
             </Button>
           </div>
 
-          {/* Connection Profiles - Main Focus */}
-          <Card className="border">
-            <CardHeader className="pb-2 pt-2 px-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Database className="h-4 w-4 text-primary" />
-                  <CardTitle className="text-base">Saved Connections</CardTitle>
-                  {profiles.length > 0 && (
-                    <Badge variant="secondary" className="ml-2 text-xs">
-                      {profiles.length}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
+          {/* Saved Connections - Card container */}
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            {/* Section header - Database icon + Title + Badge */}
+            <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-5 py-3">
+              <Database className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Saved Connections</h2>
+              {profiles.length > 0 && (
+                <Badge variant="secondary" className="ml-1 rounded-full px-2 py-0 text-xs">
+                  {profiles.length}
+                </Badge>
+              )}
+            </div>
+            <div className="p-0">
               {profiles.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-[800px]">
                     <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="text-left p-3 text-xs font-medium">Status</th>
-                        <th className="text-left p-3 text-xs font-medium">Name</th>
-                        <th className="text-left p-3 text-xs font-medium">Type</th>
-                        <th className="text-left p-3 text-xs font-medium">Host</th>
-                        <th className="text-left p-3 text-xs font-medium">Port</th>
-                        <th className="text-left p-3 text-xs font-medium">Database</th>
-                        <th className="text-left p-3 text-xs font-medium">Username</th>
-                        <th className="text-left p-3 text-xs font-medium">Path</th>
-                        <th className="text-left p-3 text-xs font-medium">SSL</th>
-                        <th className="text-left p-3 text-xs font-medium">Last Used</th>
-                        <th className="text-center p-3 text-xs font-medium">Actions</th>
+                      <tr className="border-b border-border bg-muted/40">
+                        <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium">Name</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium">Type</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium">Database Path</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground">Host</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground">Port</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground">Username</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground">SSL</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground">Last Used</th>
+                        <th className="px-3 py-3 text-center text-xs font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {profiles.map((profile) => {
                         const isActive = activeProfileId === profile.id;
+                        const pathDisplay = profile.config.type === "sqlite"
+                          ? (profile.config.connectionString || "-")
+                          : (profile.config.database || profile.config.host || "-");
                         return (
                           <tr
                             key={profile.id}
-                            className={`border-b transition-colors cursor-pointer ${
+                            className={`border-b border-border transition-colors cursor-pointer ${
                               isActive
-                                ? 'bg-primary/5 hover:bg-primary/10'
-                                : 'hover:bg-muted/50'
+                                ? "bg-primary/5 hover:bg-primary/10"
+                                : "hover:bg-muted/40"
                             }`}
                             onClick={() => {
                               if (isActive) {
                                 setShowActiveProfileModal(true);
+                              } else {
+                                handleSwitchProfile(profile.id);
                               }
                             }}
                           >
-                            <td className="p-3">
+                            <td className="px-3 py-2.5">
                               <div className="flex items-center gap-1.5">
                                 {isActive && (
-                                  <Badge variant="default" className="text-xs px-1.5 py-0">
+                                  <span className="inline-flex items-center rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
                                     Active
-                                  </Badge>
+                                  </span>
                                 )}
                                 {profile.isDefault && !isActive && (
-                                  <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                  <Badge variant="secondary" className="rounded-full text-xs">
                                     Default
                                   </Badge>
                                 )}
                                 {!isActive && !profile.isDefault && (
-                                  <span className="text-muted-foreground text-xs">-</span>
+                                  <span className="text-xs text-muted-foreground">-</span>
                                 )}
                               </div>
                             </td>
-                            <td className="p-3">
-                              <div className="flex items-center gap-1.5">
-                                <Server className={`h-3.5 w-3.5 ${
-                                  isActive ? 'text-primary' : 'text-muted-foreground'
+                            <td className="px-3 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <Server className={`h-3.5 w-3.5 shrink-0 ${
+                                  isActive ? "text-primary" : "text-muted-foreground"
                                 }`} />
                                 <span className="font-medium text-sm">{profile.name}</span>
                               </div>
                             </td>
-                            <td className="p-3">
-                              <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
+                            <td className="px-3 py-2.5">
+                              <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 font-mono text-xs">
                                 {profile.config.type}
-                              </Badge>
-                            </td>
-                            <td className="p-3">
-                              <span className="font-mono text-xs text-foreground">
-                                {profile.config.host || '-'}
                               </span>
                             </td>
-                            <td className="p-3">
-                              <span className="font-mono text-xs text-foreground">
-                                {profile.config.port || '-'}
+                            <td className="max-w-[200px] px-3 py-2.5">
+                              <span
+                                className="block truncate font-mono text-xs"
+                                title={pathDisplay}
+                              >
+                                {pathDisplay}
                               </span>
                             </td>
-                            <td className="p-3">
-                              <span className="font-mono text-xs text-foreground truncate max-w-[120px] block">
-                                {profile.config.database || '-'}
+                            <td className="px-3 py-2.5">
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {profile.config.host || "-"}
                               </span>
                             </td>
-                            <td className="p-3">
-                              <span className="text-xs text-foreground">
-                                {profile.config.username || '-'}
+                            <td className="px-3 py-2.5">
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {profile.config.port || "-"}
                               </span>
                             </td>
-                            <td className="p-3">
-                              <span className="font-mono text-xs text-foreground truncate max-w-[200px] block">
-                                {profile.config.connectionString || '-'}
+                            <td className="px-3 py-2.5">
+                              <span className="text-xs text-muted-foreground">
+                                {profile.config.username || "-"}
                               </span>
                             </td>
-                            <td className="p-3">
+                            <td className="px-3 py-2.5">
                               {profile.config.ssl ? (
-                                <div className="flex items-center gap-1">
-                                  <Shield className="h-3 w-3 text-green-600" />
-                                  <Badge variant="success" className="text-xs px-1 py-0">
-                                    {profile.config.sslMode || 'require'}
-                                  </Badge>
-                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {profile.config.sslMode || "require"}
+                                </span>
                               ) : (
-                                <span className="text-muted-foreground text-xs">-</span>
+                                <span className="text-xs text-muted-foreground">-</span>
                               )}
                             </td>
-                            <td className="p-3">
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(profile.lastUsed).toLocaleDateString()}
-                                </span>
-                              </div>
+                            <td className="px-3 py-2.5">
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(profile.lastUsed).toLocaleDateString()}
+                              </span>
                             </td>
-                            <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center justify-center gap-1">
-                                {!isActive && (
+                            <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center gap-2">
+                                {isActive ? (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => setShowActiveProfileModal(true)}
+                                    className="h-7 px-2.5 text-xs"
+                                  >
+                                    View
+                                  </Button>
+                                ) : (
                                   <Button
                                     variant="default"
                                     size="sm"
                                     onClick={() => handleSwitchProfile(profile.id)}
-                                    className="h-7 px-2 text-xs"
+                                    className="h-7 px-2.5 text-xs"
                                   >
                                     Switch
                                   </Button>
                                 )}
-                                {isActive && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowActiveProfileModal(true)}
-                                    className="h-7 px-2 text-xs"
-                                  >
-                                    View
-                                  </Button>
-                                )}
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  title="Edit"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setFormData(profile.config);
                                     setShowForm(true);
                                     setIsEditing(true);
                                   }}
-                                  className="h-7 w-7 p-0"
                                 >
                                   <Edit className="h-3.5 w-3.5" />
                                 </Button>
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon"
+                                  className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  title="Delete"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDeleteProfile(profile.id);
                                   }}
-                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
@@ -821,17 +817,19 @@ export function DatabaseConfiguration() {
                   </table>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <Database className="h-8 w-8 mx-auto mb-2 opacity-50 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-3">No saved connections yet</p>
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Database className="mb-3 h-10 w-10 text-muted-foreground/50" />
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    No database connections yet.
+                  </p>
                   <Button onClick={() => setShowForm(true)} size="sm">
-                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
                     Add Connection
                   </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Active Profile Configuration Modal */}
           {activeProfile && (
@@ -1243,8 +1241,8 @@ export function DatabaseConfiguration() {
 
   // Show configuration form
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6">
-      <div className="max-w-4xl mx-auto space-y-3">
+    <div className="min-h-screen bg-background p-6">
+      <div className="mx-auto max-w-[900px]">
         {/* Header with Back Button */}
         <div className="flex items-center gap-3">
           <Button
@@ -1274,257 +1272,267 @@ export function DatabaseConfiguration() {
                 : "Configure your database connection. You can use SQLite for local development or connect to PostgreSQL, MySQL, or MSSQL."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {/* Connection Profiles */}
+          <CardContent className="space-y-6">
+            {/* Connection Profile */}
             {profiles.length > 0 && (
-              <div className="mb-6 p-4 border rounded-md bg-muted/50">
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-sm font-medium flex items-center gap-2">
-                    <Database className="h-4 w-4" />
-                    Connection Profiles
-                  </Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowProfiles(!showProfiles)}
-                  >
-                    <ChevronDown className={`h-4 w-4 transition-transform ${showProfiles ? 'rotate-180' : ''}`} />
-                  </Button>
-                </div>
-                {showProfiles && (
-                  <div className="space-y-2">
-                    {profiles.map((profile) => (
-                      <div
-                        key={profile.id}
-                        className={`flex items-center justify-between p-2 rounded border ${
-                          activeProfileId === profile.id
-                            ? 'bg-primary/10 border-primary'
-                            : 'bg-background'
-                        }`}
-                      >
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{profile.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {profile.config.type} - {profile.config.database || profile.config.connectionString}
+              <section className="space-y-3">
+                <h3 className="text-[13px] font-semibold">Connection Profile</h3>
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2 text-[13px] font-semibold">
+                      <Database className="h-4 w-4" />
+                      Saved Profiles
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowProfiles(!showProfiles)}
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showProfiles ? "rotate-180" : ""}`} />
+                    </Button>
+                  </div>
+                  {showProfiles && (
+                    <div className="mt-3 space-y-2">
+                      {profiles.map((profile) => (
+                        <div
+                          key={profile.id}
+                          className={`flex items-center justify-between rounded-md border p-2.5 ${
+                            activeProfileId === profile.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border bg-background"
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm">{profile.name}</div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {profile.config.type} – {profile.config.database || profile.config.connectionString || "-"}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex gap-1">
-                          {activeProfileId !== profile.id && (
+                          <div className="ml-2 flex shrink-0 gap-1">
+                            {activeProfileId !== profile.id && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => handleSwitchProfile(profile.id)}
+                              >
+                                Switch
+                              </Button>
+                            )}
                             <Button
                               type="button"
                               variant="ghost"
-                              size="sm"
-                              onClick={() => handleSwitchProfile(profile.id)}
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleDeleteProfile(profile.id)}
                             >
-                              Switch
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
-                          )}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteProfile(profile.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="dbType">
-                  Database Type <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value) =>
-                    handleDatabaseTypeChange(value as DatabaseType)
-                  }
-                >
-                  <SelectTrigger id="dbType">
-                    <SelectValue placeholder="Select database type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sqlite">SQLite (Local)</SelectItem>
-                    <SelectItem value="postgresql">PostgreSQL</SelectItem>
-                    <SelectItem value="mysql">MySQL</SelectItem>
-                    <SelectItem value="mssql">MSSQL (SQL Server)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.type === "sqlite" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="connectionString">
-                    Database File Path <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="connectionString"
-                    type="text"
-                    placeholder="file:./data/omniledger.db"
-                    value={formData.connectionString || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        connectionString: e.target.value,
-                      }))
-                    }
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    SQLite file path. Use "file:" prefix for absolute paths or
-                    relative paths.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="host">
-                      Host <span className="text-destructive">*</span>
+              {/* Database Settings */}
+              <section className="space-y-3">
+                <h3 className="text-[13px] font-semibold">Database Settings</h3>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dbType" className="text-[13px] font-semibold">
+                      Database Type <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      id="host"
-                      type="text"
-                      placeholder="localhost"
-                      value={formData.host || ""}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          host: e.target.value,
-                        }))
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value) =>
+                        handleDatabaseTypeChange(value as DatabaseType)
                       }
-                      required
-                    />
+                    >
+                      <SelectTrigger id="dbType" className="h-10">
+                        <SelectValue placeholder="Select database type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sqlite">SQLite (Local)</SelectItem>
+                        <SelectItem value="postgresql">PostgreSQL</SelectItem>
+                        <SelectItem value="mysql">MySQL</SelectItem>
+                        <SelectItem value="mssql">MSSQL (SQL Server)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="port">
-                      Port <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="port"
-                      type="number"
-                      placeholder={
-                        formData.type === "postgresql"
-                          ? "5432"
-                          : formData.type === "mysql"
-                          ? "3306"
-                          : "1433"
-                      }
-                      value={formData.port || ""}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          port: parseInt(e.target.value) || undefined,
-                        }))
-                      }
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="database">
-                      Database Name <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="database"
-                      type="text"
-                      placeholder="omniledger"
-                      value={formData.database || ""}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          database: e.target.value,
-                        }))
-                      }
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="username">
-                      Username <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="username"
-                      type="text"
-                      placeholder="database_user"
-                      value={formData.username || ""}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          username: e.target.value,
-                        }))
-                      }
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password">
-                      Password <span className="text-destructive">*</span>
-                    </Label>
-                    <div className="relative">
-                    <Input
-                      id="password"
-                        type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={formData.password || ""}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          password: e.target.value,
-                        }))
-                      }
-                      required
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* SSL/TLS Configuration */}
-                  <div className="space-y-4 p-4 border rounded-md">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="enableSSL"
-                        checked={formData.ssl || false}
+                  {formData.type === "sqlite" ? (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="connectionString" className="text-[13px] font-semibold">
+                        Database File Path <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="connectionString"
+                        type="text"
+                        placeholder="file:./data/omniledger.db"
+                        value={formData.connectionString || ""}
                         onChange={(e) =>
                           setFormData((prev) => ({
                             ...prev,
-                            ssl: e.target.checked,
+                            connectionString: e.target.value,
                           }))
                         }
-                        className="rounded"
+                        className="h-10"
+                        required
                       />
-                      <Label htmlFor="enableSSL" className="cursor-pointer font-medium">
-                        Enable SSL/TLS
-                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        SQLite file path. Use &quot;file:&quot; prefix for absolute paths.
+                      </p>
                     </div>
-                    {formData.ssl && (
-                      <div className="space-y-3 pl-6 border-l-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="sslMode">SSL Mode</Label>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5 sm:col-span-1">
+                        <Label htmlFor="host" className="text-[13px] font-semibold">
+                          Host <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="host"
+                          type="text"
+                          placeholder="localhost"
+                          value={formData.host || ""}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, host: e.target.value }))
+                          }
+                          className="h-10"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="port" className="text-[13px] font-semibold">
+                          Port <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="port"
+                          type="number"
+                          placeholder={
+                            formData.type === "postgresql"
+                              ? "5432"
+                              : formData.type === "mysql"
+                                ? "3306"
+                                : "1433"
+                          }
+                          value={formData.port || ""}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              port: parseInt(e.target.value) || undefined,
+                            }))
+                          }
+                          className="h-10"
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {formData.type !== "sqlite" && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="database" className="text-[13px] font-semibold">
+                        Database Name <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="database"
+                        type="text"
+                        placeholder="omniledger"
+                        value={formData.database || ""}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, database: e.target.value }))
+                        }
+                        className="h-10"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Authentication */}
+              {formData.type !== "sqlite" && (
+                <section className="space-y-3">
+                  <h3 className="text-[13px] font-semibold">Authentication</h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="username" className="text-[13px] font-semibold">
+                        Username <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="database_user"
+                        value={formData.username || ""}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, username: e.target.value }))
+                        }
+                        className="h-10"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="password" className="text-[13px] font-semibold">
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={formData.password || ""}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, password: e.target.value }))
+                          }
+                          className="h-10 pr-10"
+                          autoComplete="new-password"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          title={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Security - SSL/TLS */}
+              {formData.type !== "sqlite" && (
+                <section className="space-y-3">
+                  <h3 className="text-[13px] font-semibold">Security</h3>
+                  <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                    <Label htmlFor="enableSSL" className="cursor-pointer text-[13px] font-semibold">
+                      Enable SSL/TLS Encryption
+                    </Label>
+                    <Switch
+                      id="enableSSL"
+                      checked={formData.ssl || false}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({ ...prev, ssl: checked }))
+                      }
+                    />
+                  </div>
+                  {formData.ssl && (
+                    <div className="space-y-3 rounded-lg border border-border p-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="sslMode" className="text-[13px] font-semibold">SSL Mode</Label>
                           <Select
                             value={formData.sslMode || "require"}
                             onValueChange={(value) =>
@@ -1534,7 +1542,7 @@ export function DatabaseConfiguration() {
                               }))
                             }
                           >
-                            <SelectTrigger id="sslMode">
+                            <SelectTrigger id="sslMode" className="h-10">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1546,15 +1554,15 @@ export function DatabaseConfiguration() {
                               <SelectItem value="verify-full">Verify Full</SelectItem>
                             </SelectContent>
                           </Select>
-                          <p className="text-xs text-muted-foreground">
-                            {formData.sslMode === "require" && "Requires SSL connection"}
-                            {formData.sslMode === "verify-ca" && "Verify certificate authority"}
-                            {formData.sslMode === "verify-full" && "Verify full certificate chain"}
-                          </p>
-                        </div>
-                        {(formData.sslMode === "verify-ca" || formData.sslMode === "verify-full") && (
-                          <div className="space-y-2">
-                            <Label htmlFor="sslCa">CA Certificate File (Optional)</Label>
+                        <p className="text-xs text-muted-foreground">
+                          {formData.sslMode === "require" && "Requires SSL connection"}
+                          {formData.sslMode === "verify-ca" && "Verify certificate authority"}
+                          {formData.sslMode === "verify-full" && "Verify full certificate chain"}
+                        </p>
+                      </div>
+                      {(formData.sslMode === "verify-ca" || formData.sslMode === "verify-full") && (
+                        <div className="space-y-1.5">
+                          <Label htmlFor="sslCa" className="text-[13px] font-semibold">CA Certificate File (Optional)</Label>
                             <Input
                               id="sslCa"
                               type="text"
@@ -1566,14 +1574,21 @@ export function DatabaseConfiguration() {
                                   sslCa: e.target.value,
                                 }))
                               }
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                            className="h-10"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
 
-                  {/* Connection Status Indicator */}
+              {/* Migration & Tools */}
+              {formData.type !== "sqlite" && (
+                <section className="space-y-3">
+                  <h3 className="text-[13px] font-semibold">Migration & Tools</h3>
+
+                  {/* Connection Status */}
                   {connectionStatus !== 'idle' && (
                     <div className="flex items-center gap-2 p-3 rounded-md bg-muted">
                       {connectionStatus === 'testing' && (
@@ -1608,42 +1623,48 @@ export function DatabaseConfiguration() {
                     </div>
                   )}
 
-                  {/* Migration Status */}
+                  {/* Migration Status Alert */}
                   {migrationStatus && (
-                    <div className="p-3 rounded-md bg-muted">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {checkingMigration ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          ) : migrationStatus.isUpToDate ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <AlertCircle className="h-4 w-4 text-yellow-600" />
-                          )}
-                          <span className="text-sm font-medium">
-                            Migration Status: {migrationStatus.isUpToDate ? 'Up to date' : 'Pending'}
-                          </span>
-                        </div>
-                        {migrationStatus.lastMigration && (
-                          <span className="text-xs text-muted-foreground">
-                            Last: {migrationStatus.lastMigration.toLocaleDateString()}
-                          </span>
+                    <div
+                      className={`flex items-center justify-between rounded-lg border p-2.5 ${
+                        migrationStatus.isUpToDate
+                          ? "border-green-200 bg-green-500/10 dark:border-green-800 dark:bg-green-950/30"
+                          : "border-amber-200 bg-amber-500/10 dark:border-amber-800 dark:bg-amber-950/30"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {checkingMigration ? (
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+                        ) : migrationStatus.isUpToDate ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
                         )}
+                        <span className="text-sm font-medium">
+                          Migration Status: {migrationStatus.isUpToDate ? "Up to date" : "Pending"}
+                        </span>
                       </div>
+                      {migrationStatus.lastMigration && (
+                        <span className="text-xs text-muted-foreground">
+                          Last: {migrationStatus.lastMigration.toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
                   )}
 
-                  <div className="flex gap-3">
+                  {/* Connection Tools */}
+                  <div className="flex flex-wrap gap-3">
                     <Button
                       type="button"
                       variant="outline"
+                      size="sm"
                       onClick={() => handleTestConnection()}
                       disabled={testingConnection || syncingTables}
-                      className="flex-1"
+                      className="h-9"
                     >
                       {testingConnection ? (
                         <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Testing...
                         </>
                       ) : (
@@ -1653,13 +1674,14 @@ export function DatabaseConfiguration() {
                     <Button
                       type="button"
                       variant="outline"
+                      size="sm"
                       onClick={() => handleSyncTables()}
                       disabled={syncingTables || testingConnection}
-                      className="flex-1"
+                      className="h-9"
                     >
                       {syncingTables ? (
                         <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Syncing...
                         </>
                       ) : (
@@ -1667,7 +1689,7 @@ export function DatabaseConfiguration() {
                       )}
                     </Button>
                   </div>
-                  {initializationStatus && (
+                  {initializationStatus && initializationStatus.length > 0 && (
                     <div className={`p-3 text-sm rounded-md ${
                       initializationStatus.toLowerCase().includes("success") || initializationStatus.toLowerCase().includes("created") || initializationStatus.toLowerCase().includes("up to date") 
                         ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
@@ -1678,7 +1700,7 @@ export function DatabaseConfiguration() {
                       {initializationStatus}
                     </div>
                   )}
-                </>
+                </section>
               )}
 
               {/* Enhanced Error Display */}
@@ -1759,41 +1781,42 @@ export function DatabaseConfiguration() {
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground -mt-1">
+              <p className="text-xs text-muted-foreground">
                 <strong>Connect</strong> to use this database now. <strong>Save for Later</strong> adds it to your list for quick switching.
               </p>
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   onClick={handleSaveAsProfile}
                   disabled={isLoading}
                   title="Add to saved connections without connecting"
+                  className="sm:order-1"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="mr-2 h-4 w-4" />
                   Save for Later
                 </Button>
-                <div className="flex gap-4">
-                {isEditing ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleBackToExisting}
-                  >
-                    Back
+                <div className="flex justify-end gap-3 sm:order-2">
+                  {isEditing ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleBackToExisting}
+                    >
+                      Back
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate("/")}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Connecting..." : isEditing ? "Update & Connect" : "Connect"}
                   </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate("/")}
-                  >
-                    Cancel
-                  </Button>
-                )}
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Connecting..." : isEditing ? "Update & Connect" : "Connect"}
-                </Button>
                 </div>
               </div>
             </form>
