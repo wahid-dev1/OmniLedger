@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Loader2, AlertTriangle, Calendar, Package } from "lucide-react";
 import { generatePDFReport } from "@/lib/pdfGenerator";
 import { PDFPreviewDialog } from "./PDFPreviewDialog";
@@ -177,118 +183,116 @@ export function BatchExpiryReport({ companyId, dateRange, onPrintPDF }: BatchExp
     <>
       <div className="space-y-6">
         {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Expiry Status</Label>
-                <Select value={expiryFilter} onValueChange={(value) => setExpiryFilter(value as ExpiryFilter)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Batches</SelectItem>
-                    <SelectItem value="expiring_soon">Expiring Soon</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                    <SelectItem value="no_expiry">No Expiry Date</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {expiryFilter === "expiring_soon" && (
-                <div className="space-y-2">
-                  <Label>Days Ahead</Label>
-                  <Select 
-                    value={daysAhead.toString()} 
-                    onValueChange={(value) => setDaysAhead(parseInt(value))}
-                  >
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-lg">Filters</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="font-medium w-40">Expiry Status</TableCell>
+                <TableCell>
+                  <Select value={expiryFilter} onValueChange={(value) => setExpiryFilter(value as ExpiryFilter)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="7">7 days</SelectItem>
-                      <SelectItem value="15">15 days</SelectItem>
-                      <SelectItem value="30">30 days</SelectItem>
-                      <SelectItem value="60">60 days</SelectItem>
-                      <SelectItem value="90">90 days</SelectItem>
+                      <SelectItem value="all">All Batches</SelectItem>
+                      <SelectItem value="expiring_soon">Expiring Soon</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                      <SelectItem value="no_expiry">No Expiry Date</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </TableCell>
+              </TableRow>
+              {expiryFilter === "expiring_soon" && (
+                <TableRow>
+                  <TableCell className="font-medium">Days Ahead</TableCell>
+                  <TableCell>
+                    <Select 
+                      value={daysAhead.toString()} 
+                      onValueChange={(value) => setDaysAhead(parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="7">7 days</SelectItem>
+                        <SelectItem value="15">15 days</SelectItem>
+                        <SelectItem value="30">30 days</SelectItem>
+                        <SelectItem value="60">60 days</SelectItem>
+                        <SelectItem value="90">90 days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                </TableRow>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Batches</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{batches.length}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                Expired
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{expiredCount}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-yellow-600" />
-                Expiring Soon
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{expiringSoonCount}</div>
-            </CardContent>
-          </Card>
+            </TableBody>
+          </Table>
         </div>
 
-        {/* Batch List */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        {/* Summary Table */}
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-sm font-medium text-muted-foreground">Total Batches</TableHead>
+                <TableHead className="text-sm font-medium text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    Expired
+                  </span>
+                </TableHead>
+                <TableHead className="text-sm font-medium text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-yellow-600" />
+                    Expiring Soon
+                  </span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="text-2xl font-bold">{batches.length}</TableCell>
+                <TableCell className="text-2xl font-bold text-red-600">{expiredCount}</TableCell>
+                <TableCell className="text-2xl font-bold text-yellow-600">{expiringSoonCount}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Batch Details Table */}
+        <div className="rounded-lg border">
+          <div className="px-4 py-3 border-b">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
               <Package className="h-5 w-5" />
               Batch Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {batches.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No batches found for the selected filters.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-3 text-sm font-medium">Batch #</th>
-                      <th className="text-left p-3 text-sm font-medium">Product</th>
-                      <th className="text-left p-3 text-sm font-medium">SKU</th>
-                      <th className="text-right p-3 text-sm font-medium">Quantity</th>
-                      <th className="text-right p-3 text-sm font-medium">Available</th>
-                      <th className="text-left p-3 text-sm font-medium">Expiry Date</th>
-                      <th className="text-left p-3 text-sm font-medium">Days Until</th>
-                      <th className="text-left p-3 text-sm font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {batches.map((batch) => {
+            </h3>
+          </div>
+          {batches.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No batches found for the selected filters.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Batch #</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead className="text-right">Available</TableHead>
+                  <TableHead>Expiry Date</TableHead>
+                  <TableHead>Days Until</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {batches.map((batch) => {
                       const quantity = typeof batch.quantity === 'number' 
                         ? batch.quantity 
                         : parseFloat(batch.quantity.toString());
@@ -312,13 +316,13 @@ export function BatchExpiryReport({ companyId, dateRange, onPrintPDF }: BatchExp
                       }
 
                       return (
-                        <tr key={batch.id} className="border-b hover:bg-muted/50">
-                          <td className="p-3 text-sm font-mono">{batch.batchNumber}</td>
-                          <td className="p-3 text-sm">{batch.product.name}</td>
-                          <td className="p-3 text-sm font-mono text-muted-foreground">{batch.product.sku}</td>
-                          <td className="p-3 text-sm text-right">{quantity}</td>
-                          <td className="p-3 text-sm text-right">{available}</td>
-                          <td className="p-3 text-sm">
+                        <TableRow key={batch.id}>
+                          <TableCell className="font-mono">{batch.batchNumber}</TableCell>
+                          <TableCell>{batch.product.name}</TableCell>
+                          <TableCell className="font-mono text-muted-foreground">{batch.product.sku}</TableCell>
+                          <TableCell className="text-right">{quantity}</TableCell>
+                          <TableCell className="text-right">{available}</TableCell>
+                          <TableCell>
                             {batch.expiryDate ? (
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -327,8 +331,8 @@ export function BatchExpiryReport({ companyId, dateRange, onPrintPDF }: BatchExp
                             ) : (
                               <span className="text-muted-foreground">N/A</span>
                             )}
-                          </td>
-                          <td className="p-3 text-sm">
+                          </TableCell>
+                          <TableCell>
                             {daysUntil !== null ? (
                               <span className={daysUntil < 0 ? 'text-red-600 font-semibold' : daysUntil <= 30 ? 'text-yellow-600 font-semibold' : ''}>
                                 {daysUntil} days
@@ -336,21 +340,19 @@ export function BatchExpiryReport({ companyId, dateRange, onPrintPDF }: BatchExp
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
-                          </td>
-                          <td className="p-3 text-sm">
+                          </TableCell>
+                          <TableCell>
                             <span className={`px-2 py-1 rounded text-xs ${statusColor}`}>
                               {statusText}
                             </span>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </TableBody>
+            </Table>
+          )}
+        </div>
       </div>
 
       <PDFPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} />

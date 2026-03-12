@@ -1,8 +1,15 @@
-# 📊 OmniLedger
+# OmniLedger – Free Desktop Inventory & Accounting Software
+
+<!--
+  SEO Meta (for docs sites, landing pages):
+  Title: OmniLedger | Free Desktop Inventory & Accounting Software
+  Description: OmniLedger is free, open-source inventory management and accounting software for Windows, Mac, and Linux. Track stock, sales, batch numbers, double-entry bookkeeping, and multi-company finances in one desktop app.
+  Keywords: inventory management software, accounting software, desktop inventory app, point of sale, batch tracking, stock management, double-entry bookkeeping, free accounting software, open source inventory
+-->
 
 <div align="center">
 
-**A comprehensive Desktop Inventory & Accounting System for modern businesses**
+**Free, open-source inventory management and accounting software for Windows, macOS, and Linux**
 
 [![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/wahid-dev1/omniledger)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -19,7 +26,13 @@
 
 ---
 
-> **OmniLedger** is a powerful desktop application for inventory management, sales tracking, financial accounting, and business operations. Built with modern technologies and designed for scalability, it supports multiple companies, batch tracking, double-entry bookkeeping, and seamless Excel integration.
+## What is OmniLedger?
+
+**OmniLedger** is free, open-source **inventory management software** and **accounting software** for small businesses, retailers, and enterprises. Run it as a desktop app on Windows, macOS, or Linux—no subscription, no cloud lock-in.
+
+Manage **stock**, **sales**, **batch tracking**, **double-entry bookkeeping**, **customer and supplier ledgers**, and **multi-company finances** in one application. Built with Electron, React, and TypeScript for reliability and future SaaS migration.
+
+**At a glance:** Free & open-source (MIT) • Cross-platform (Windows, Mac, Linux) • Multi-company support • Batch & expiry tracking • Point of sale (POS) • Excel import/export • SQLite, PostgreSQL, MySQL, MSSQL
 
 ## ✨ Features
 
@@ -105,7 +118,7 @@ Get OmniLedger up and running in minutes:
 ```bash
 # 1. Clone the repository
 git clone https://github.com/wahid-dev1/omniledger.git
-cd PrimeStock
+cd omniledger
 
 # 2. Install dependencies
 npm install
@@ -413,6 +426,18 @@ We welcome contributions! Here's how you can help:
 - Test across different database types when applicable
 
 See our [Contributing Guide](./CONTRIBUTING.md) for more details.
+
+---
+
+## Frequently Asked Questions
+
+| Question | Answer |
+|----------|--------|
+| **Is OmniLedger free?** | Yes. OmniLedger is free and open-source under the MIT license. |
+| **What operating systems are supported?** | Windows, macOS, and Linux (x64 and ARM64). |
+| **Which databases can I use?** | SQLite (default), PostgreSQL, MySQL, and Microsoft SQL Server. |
+| **Does it support batch tracking?** | Yes. Full batch number, expiry date, and manufacturing date tracking. |
+| **Can I manage multiple companies?** | Yes. Multi-company support with complete data isolation. |
 
 ---
 
