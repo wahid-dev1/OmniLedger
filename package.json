@@ -1,6 +1,6 @@
 {
   "name": "omniledger",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Desktop Inventory & Accounting System",
   "main": "dist-electron/main/main.js",
   "author": "wahid-dev1",
@@ -52,8 +52,10 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "build:win": "npm run build && electron-builder --win",
     "build:win:dir": "npm run build && electron-builder --win --dir",
+    "build:win:local": "npm run build && electron-builder --win --publish never",
     "build:mac": "npm run build && electron-builder --mac",
     "build:mac:dmg": "npm run build && electron-builder --mac dmg",
+    "build:mac:local": "npm run build && electron-builder --mac dmg --publish never",
     "build:linux": "npm run build && electron-builder --linux",
     "build:linux:dir": "npm run build && electron-builder --linux --dir",
     "build:linux:appimage": "npm run build && electron-builder --linux AppImage",
