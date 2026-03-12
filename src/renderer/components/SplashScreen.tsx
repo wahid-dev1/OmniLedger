@@ -13,6 +13,7 @@ export function SplashScreen() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [loadingSample, setLoadingSample] = useState(false);
+  const [sampleError, setSampleError] = useState<string | null>(null);
   const [hasCheckedCompanies, setHasCheckedCompanies] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
@@ -99,20 +100,26 @@ export function SplashScreen() {
     navigate("/database/config");
   };
 
-  const handleLoadSampleCompany = async () => {
+  const handleLoadSampleCompany = async (clearExisting = false) => {
     if (!databaseConfig) return;
+    if (clearExisting && !confirm("This will delete ALL existing data (companies, products, sales, etc.) and load the sample company. This cannot be undone. Continue?")) {
+      return;
+    }
     setLoadingSample(true);
+    setSampleError(null);
     setError(null);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (window as any).electronAPI?.seedDatabase(databaseConfig, false);
+      const result = await (window as any).electronAPI?.seedDatabase(databaseConfig, clearExisting);
       if (result?.success) {
         await loadCompanies();
       } else {
-        setError(result?.error || "Failed to load sample company");
+        const errMsg = result?.error || "Failed to load sample company";
+        setSampleError(errMsg);
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to load sample company");
+      const errMsg = error instanceof Error ? error.message : "Failed to load sample company";
+      setSampleError(errMsg);
     } finally {
       setLoadingSample(false);
     }
@@ -223,7 +230,7 @@ export function SplashScreen() {
                 <div className="flex justify-end gap-3 pt-4">
                   <Button
                     variant="outline"
-                    onClick={handleLoadSampleCompany}
+                    onClick={() => handleLoadSampleCompany(false)}
                     disabled={loadingSample}
                   >
                     {loadingSample ? (
@@ -243,10 +250,27 @@ export function SplashScreen() {
           </Card>
         )}
 
+        {sampleError && (
+          <div className="mt-4 mx-auto max-w-xl p-3 bg-destructive/10 text-destructive text-sm rounded-md text-center">
+            {sampleError}
+            {sampleError.includes("already contains data") && (
+              <div className="mt-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleLoadSampleCompany(true)}
+                  disabled={loadingSample}
+                >
+                  Clear and load sample
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="mt-8 flex justify-center gap-4">
           <Button
             variant="outline"
-            onClick={handleLoadSampleCompany}
+            onClick={() => handleLoadSampleCompany(false)}
             disabled={loadingSample}
             className="flex items-center gap-2"
           >
