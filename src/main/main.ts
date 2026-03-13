@@ -3640,6 +3640,45 @@ ipcMain.handle("delete-purchase", async (_event, purchaseId: string) => {
   }
 });
 
+// Update purchase status
+ipcMain.handle("update-purchase-status", async (_event, purchaseId: string, status: string) => {
+  try {
+    const validStatuses = ["pending", "completed", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return {
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+      };
+    }
+
+    const purchase = await Purchase.findByPk(purchaseId);
+    if (!purchase) {
+      return { success: false, error: "Purchase not found" };
+    }
+
+    await purchase.update({ status });
+
+    const updatedPurchase = await Purchase.findByPk(purchaseId, {
+      include: [
+        { model: Vendor, as: "vendor" },
+        { model: PurchaseItem, as: "items", include: [{ model: Product, as: "product" }, { model: Batch, as: "batch" }] },
+        { model: PurchasePayment, as: "payments" },
+      ],
+    });
+
+    return {
+      success: true,
+      data: serializeForIPC(updatedPurchase),
+    };
+  } catch (error) {
+    console.error("Error updating purchase status:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+});
+
 // Add a payment to an existing purchase
 ipcMain.handle("add-purchase-payment", async (_event, purchaseId: string, data: {
   amount: number;

@@ -58,3 +58,37 @@
   }
 }
 
+/* Products table horizontal scroll - custom scrollbar */
+.products-table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scrollbar-gutter: stable;
+}
+.products-table-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.products-table-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.products-table-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.products-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Compact table on small screens */
+@media (max-width: 768px) {
+  .products-table-scroll table th {
+    padding: 0.5rem 0.5rem;
+    font-size: 11px;
+  }
+  .products-table-scroll table td {
+    padding: 0.375rem 0.5rem;
+    font-size: 12px;
+  }
+}
+
