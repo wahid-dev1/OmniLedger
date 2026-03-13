@@ -4,25 +4,21 @@
  */
 
 import { useState, useEffect } from "react";
-import { 
-  Database, 
-  HardDrive, 
-  Table, 
-  BarChart3, 
-  RefreshCw, 
+import {
+  Database,
+  HardDrive,
+  Table,
+  BarChart3,
+  RefreshCw,
   Download,
   Loader2,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Zap,
+  Clock,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { DatabaseConfig } from "@shared/types";
 
 interface DatabaseInfo {
@@ -31,7 +27,7 @@ interface DatabaseInfo {
   totalRecords?: number;
   lastBackup?: Date | null;
   version?: string;
-  status: 'connected' | 'disconnected' | 'checking';
+  status: "connected" | "disconnected" | "checking";
 }
 
 interface DatabaseInfoDashboardProps {
@@ -41,13 +37,37 @@ interface DatabaseInfoDashboardProps {
   onRefresh?: () => Promise<void>;
 }
 
+// ─── Stat tile ────────────────────────────────────────────────────────────────
+function StatTile({
+  icon: Icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: React.ReactNode;
+  sub?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border bg-card p-4">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className="text-2xl font-semibold tracking-tight">{value}</div>
+      {sub && <p className="text-[11px] text-muted-foreground">{sub}</p>}
+    </div>
+  );
+}
+
 export function DatabaseInfoDashboard({
   config,
   onBackup,
   onOptimize,
   onRefresh,
 }: DatabaseInfoDashboardProps) {
-  const [info, setInfo] = useState<DatabaseInfo>({ status: 'checking' });
+  const [info, setInfo] = useState<DatabaseInfo>({ status: "checking" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [backingUp, setBackingUp] = useState(false);
@@ -60,23 +80,21 @@ export function DatabaseInfoDashboard({
   const loadDatabaseInfo = async () => {
     setLoading(true);
     setError(null);
-    
     try {
-      // TODO: Implement IPC call to get database info
-      // For now, simulate with mock data
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       setInfo({
-        status: 'connected',
-        size: '45.2 MB',
+        status: "connected",
+        size: "45.2 MB",
         tableCount: 24,
         totalRecords: 12345,
         lastBackup: null,
-        version: config.type === 'sqlite' ? '3.42.0' : '14.5',
+        version: config.type === "sqlite" ? "3.42.0" : "14.5",
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load database information');
-      setInfo({ status: 'disconnected' });
+      setError(
+        err instanceof Error ? err.message : "Failed to load database information"
+      );
+      setInfo({ status: "disconnected" });
     } finally {
       setLoading(false);
     }
@@ -84,13 +102,12 @@ export function DatabaseInfoDashboard({
 
   const handleBackup = async () => {
     if (!onBackup) return;
-    
     setBackingUp(true);
     try {
       await onBackup();
-      setInfo(prev => ({ ...prev, lastBackup: new Date() }));
+      setInfo((prev) => ({ ...prev, lastBackup: new Date() }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Backup failed');
+      setError(err instanceof Error ? err.message : "Backup failed");
     } finally {
       setBackingUp(false);
     }
@@ -98,196 +115,195 @@ export function DatabaseInfoDashboard({
 
   const handleOptimize = async () => {
     if (!onOptimize) return;
-    
     setOptimizing(true);
     try {
       await onOptimize();
-      await loadDatabaseInfo(); // Refresh info after optimization
+      await loadDatabaseInfo();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Optimization failed');
+      setError(err instanceof Error ? err.message : "Optimization failed");
     } finally {
       setOptimizing(false);
     }
   };
 
   const handleRefresh = async () => {
-    if (onRefresh) {
-      await onRefresh();
-    }
+    if (onRefresh) await onRefresh();
     await loadDatabaseInfo();
   };
 
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <Card>
-        <CardContent className="py-8">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-            <p className="text-muted-foreground">Loading database information...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center rounded-xl border bg-card py-14 text-center">
+        <Loader2 className="mb-3 h-7 w-7 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Loading database info…</p>
+      </div>
     );
   }
 
+  // ── Disconnected ───────────────────────────────────────────────────────────
+  if (info.status === "disconnected") {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-14 text-center">
+        <AlertCircle className="mb-3 h-8 w-8 text-destructive" />
+        <p className="font-semibold text-destructive">Database disconnected</p>
+        {error && (
+          <p className="mt-1 max-w-xs text-xs text-muted-foreground">{error}</p>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          className="mt-4 gap-2"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  const dbLabel =
+    config.type === "sqlite"
+      ? config.connectionString || "SQLite"
+      : `${config.host}/${config.database}`;
+
   return (
-    <div className="space-y-4">
-      {/* Status Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Database Information
-              </CardTitle>
-              <CardDescription>
-                {config.type.toUpperCase()} - {config.database || config.connectionString}
-              </CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+    <div className="space-y-5">
+      {/* ── Header row ── */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-green-500" />
+            <span className="text-sm font-semibold">Connected</span>
+            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+              {config.type.toUpperCase()} {info.version && `v${info.version}`}
+            </span>
           </div>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              {error}
-            </div>
-          )}
+          <p
+            className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground"
+            title={dbLabel}
+          >
+            {dbLabel}
+          </p>
+        </div>
 
-          {info.status === 'connected' ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <HardDrive className="h-4 w-4" />
-                  Size
-                </div>
-                <div className="text-2xl font-semibold">{info.size || 'N/A'}</div>
-              </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={loading}
+          className="gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+          Refresh
+        </Button>
+      </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Table className="h-4 w-4" />
-                  Tables
-                </div>
-                <div className="text-2xl font-semibold">{info.tableCount || 0}</div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <BarChart3 className="h-4 w-4" />
-                  Records
-                </div>
-                <div className="text-2xl font-semibold">
-                  {info.totalRecords?.toLocaleString() || 0}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Status
-                </div>
-                <div className="text-2xl font-semibold text-green-600">Connected</div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-4">
-              <AlertCircle className="h-8 w-8 mx-auto text-destructive mb-2" />
-              <p className="text-destructive">Database is disconnected</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Additional Info */}
-      {info.status === 'connected' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Version</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {info.version || 'Unknown'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Last Backup</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {info.lastBackup 
-                  ? new Date(info.lastBackup).toLocaleString()
-                  : 'Never backed up'}
-              </p>
-            </CardContent>
-          </Card>
+      {/* ── Error banner ── */}
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
         </div>
       )}
 
-      {/* Quick Actions */}
-      {info.status === 'connected' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="outline"
-                onClick={handleBackup}
-                disabled={backingUp || !onBackup}
-              >
-                {backingUp ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Backing up...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Backup Database
-                  </>
-                )}
-              </Button>
+      {/* ── Stat tiles ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile
+          icon={HardDrive}
+          label="Size"
+          value={info.size ?? "—"}
+        />
+        <StatTile
+          icon={Table}
+          label="Tables"
+          value={info.tableCount ?? 0}
+        />
+        <StatTile
+          icon={BarChart3}
+          label="Records"
+          value={(info.totalRecords ?? 0).toLocaleString()}
+        />
+        <StatTile
+          icon={CheckCircle2}
+          label="Status"
+          value={
+            <span className="text-green-600 dark:text-green-400">Healthy</span>
+          }
+        />
+      </div>
 
-              {config.type === 'sqlite' && (
-                <Button
-                  variant="outline"
-                  onClick={handleOptimize}
-                  disabled={optimizing || !onOptimize}
-                >
-                  {optimizing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Optimizing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Optimize Database
-                    </>
-                  )}
-                </Button>
+      {/* ── Secondary info row ── */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3">
+          <Database className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Version</p>
+            <p className="text-sm font-semibold">{info.version ?? "Unknown"}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3">
+          <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Last Backup</p>
+            <p
+              className={cn(
+                "text-sm font-semibold",
+                !info.lastBackup && "text-amber-600 dark:text-amber-400"
               )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            >
+              {info.lastBackup
+                ? new Intl.DateTimeFormat("en", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(info.lastBackup))
+                : "Never"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Quick actions ── */}
+      <div className="rounded-xl border bg-card px-5 py-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Quick Actions
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBackup}
+            disabled={backingUp || !onBackup}
+            className="gap-2"
+          >
+            {backingUp ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            {backingUp ? "Backing up…" : "Backup Database"}
+          </Button>
+
+          {config.type === "sqlite" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOptimize}
+              disabled={optimizing || !onOptimize}
+              className="gap-2"
+            >
+              {optimizing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Zap className="h-3.5 w-3.5" />
+              )}
+              {optimizing ? "Optimizing…" : "Optimize (VACUUM)"}
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-

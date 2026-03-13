@@ -5,35 +5,23 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  Database, 
-  Server, 
-  CheckCircle2, 
-  ArrowRight, 
+import {
+  Database,
+  Server,
+  CheckCircle2,
+  ArrowRight,
   ArrowLeft,
   Loader2,
-  Sparkles
+  Sparkles,
+  HardDrive,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAppStore } from "@/stores/useAppStore";
 import type { DatabaseConfig, DatabaseType } from "@shared/types";
 import { parseDatabaseError, type ErrorDetails } from "@/utils/databaseErrors";
+import { cn } from "@/lib/utils";
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
 
@@ -44,6 +32,138 @@ interface WizardData {
   profileName: string;
 }
 
+// ─── Step indicator ───────────────────────────────────────────────────────────
+function StepDots({
+  total,
+  current,
+}: {
+  total: number;
+  current: number;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          key={i}
+          className={cn(
+            "h-1.5 rounded-full transition-all duration-300",
+            i + 1 === current
+              ? "w-4 bg-primary"
+              : i + 1 < current
+              ? "w-1.5 bg-primary/40"
+              : "w-1.5 bg-muted-foreground/20"
+          )}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Shared layout shell ──────────────────────────────────────────────────────
+function WizardShell({
+  step,
+  totalSteps,
+  children,
+}: {
+  step: number;
+  totalSteps: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      {/* Soft glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0"
+      >
+        <div className="absolute left-1/2 top-0 h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-primary/8 blur-[140px]" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-lg">
+        {/* Step indicator */}
+        <div className="mb-4 flex items-center justify-between px-1">
+          <p className="text-xs text-muted-foreground">
+            Step {step} of {totalSteps}
+          </p>
+          <StepDots total={totalSteps} current={step} />
+        </div>
+
+        <div className="rounded-2xl border bg-card shadow-xl shadow-black/5">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Option card ──────────────────────────────────────────────────────────────
+function OptionCard({
+  icon: Icon,
+  title,
+  description,
+  badge,
+  onClick,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  badge?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "group w-full rounded-xl border p-5 text-left transition-all duration-150",
+        "hover:border-primary/50 hover:bg-primary/5 hover:shadow-sm",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      )}
+    >
+      <div className="flex items-start gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/15">
+          <Icon className="h-5 w-5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{title}</span>
+            {badge && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                {badge}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        </div>
+        <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 mt-0.5" />
+      </div>
+    </button>
+  );
+}
+
+// ─── Form field ───────────────────────────────────────────────────────────────
+function Field({
+  label,
+  required,
+  hint,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline gap-1">
+        <Label className="text-sm font-medium">{label}</Label>
+        {required && <span className="text-xs text-destructive">*</span>}
+      </div>
+      {children}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
 export function DatabaseWizard() {
   const navigate = useNavigate();
   const { setDatabaseConfig, setError } = useAppStore();
@@ -51,7 +171,7 @@ export function DatabaseWizard() {
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
-  
+
   const [wizardData, setWizardData] = useState<WizardData>({
     setupType: null,
     type: null,
@@ -60,43 +180,30 @@ export function DatabaseWizard() {
   });
 
   const handleQuickSetup = () => {
-    setWizardData(prev => ({
+    setWizardData((prev) => ({
       ...prev,
       setupType: "quick",
       type: "sqlite",
-      config: {
-        type: "sqlite",
-        connectionString: "file:./data/omniledger.db",
-      },
+      config: { type: "sqlite", connectionString: "file:./data/omniledger.db" },
     }));
-    setCurrentStep(5); // Skip to final step for quick setup
+    setCurrentStep(5);
   };
 
   const handleAdvancedSetup = () => {
-    setWizardData(prev => ({ ...prev, setupType: "advanced" }));
+    setWizardData((prev) => ({ ...prev, setupType: "advanced" }));
     setCurrentStep(2);
   };
 
   const handleDatabaseTypeSelect = (type: DatabaseType) => {
     const config: Partial<DatabaseConfig> = { type };
-    
     if (type === "sqlite") {
       config.connectionString = "file:./data/omniledger.db";
     } else {
-      // Set defaults based on type
-      if (type === "postgresql") {
-        config.port = 5432;
-        config.host = "localhost";
-      } else if (type === "mysql") {
-        config.port = 3306;
-        config.host = "localhost";
-      } else if (type === "mssql") {
-        config.port = 1433;
-        config.host = "localhost";
-      }
+      config.host = "localhost";
+      config.port =
+        type === "postgresql" ? 5432 : type === "mysql" ? 3306 : 1433;
     }
-    
-    setWizardData(prev => ({
+    setWizardData((prev) => ({
       ...prev,
       type,
       config: { ...prev.config, ...config },
@@ -105,7 +212,7 @@ export function DatabaseWizard() {
   };
 
   const handleConfigUpdate = (field: keyof DatabaseConfig, value: any) => {
-    setWizardData(prev => ({
+    setWizardData((prev) => ({
       ...prev,
       config: { ...prev.config, [field]: value },
     }));
@@ -116,31 +223,27 @@ export function DatabaseWizard() {
       setCurrentStep(5);
       return;
     }
-
     const config = wizardData.config as DatabaseConfig;
     if (!config.host || !config.database || !config.username) {
       setError("Please fill in all required fields");
       return;
     }
-
     setTesting(true);
     setErrorDetails(null);
     setError(null);
-
     try {
       const result = await window.electronAPI.testDatabaseConnection(config);
-      
       if (result.success) {
         setCurrentStep(5);
       } else {
-        const parsedError = parseDatabaseError(new Error(result.error || "Connection failed"));
-        setErrorDetails(parsedError);
-        setError(parsedError.message);
+        const parsed = parseDatabaseError(new Error(result.error || "Connection failed"));
+        setErrorDetails(parsed);
+        setError(parsed.message);
       }
     } catch (error) {
-      const parsedError = parseDatabaseError(error);
-      setErrorDetails(parsedError);
-      setError(parsedError.message);
+      const parsed = parseDatabaseError(error);
+      setErrorDetails(parsed);
+      setError(parsed.message);
     } finally {
       setTesting(false);
     }
@@ -149,385 +252,340 @@ export function DatabaseWizard() {
   const handleFinish = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const config = wizardData.config as DatabaseConfig;
-      
-      // Save configuration
       setDatabaseConfig(config);
       localStorage.setItem("omniledger_db_config", JSON.stringify(config));
-      
-      // Navigate to splash screen
       navigate("/");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to save configuration";
-      setError(errorMessage);
+      setError(error instanceof Error ? error.message : "Failed to save configuration");
     } finally {
       setLoading(false);
     }
   };
 
   const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep((currentStep - 1) as WizardStep);
-    } else {
-      navigate("/");
-    }
+    if (currentStep > 1) setCurrentStep((currentStep - 1) as WizardStep);
+    else navigate("/");
   };
 
-  // Step 1: Welcome & Setup Type Selection
+  // ── Step 1: Welcome ────────────────────────────────────────────────────────
   if (currentStep === 1) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <Sparkles className="h-8 w-8 text-primary" />
-              </div>
-              <CardTitle className="text-2xl">Welcome to OmniLedger</CardTitle>
-              <CardDescription className="text-base">
-                Let's set up your database connection. Choose an option below:
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                onClick={handleQuickSetup}
-                className="w-full h-auto p-6 flex flex-col items-start gap-3"
-                variant="outline"
-              >
-                <div className="flex items-center gap-3 w-full">
-                  <Database className="h-6 w-6 text-primary" />
-                  <div className="flex-1 text-left">
-                    <div className="font-semibold">Quick Setup (SQLite)</div>
-                    <div className="text-sm text-muted-foreground">
-                      Perfect for local development. No server required.
-                    </div>
-                  </div>
-                  <ArrowRight className="h-5 w-5" />
-                </div>
-              </Button>
+      <WizardShell step={1} totalSteps={3}>
+        <div className="p-8">
+          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+            <Sparkles className="h-7 w-7 text-primary" />
+          </div>
+          <h1 className="mb-1 text-2xl font-bold">Welcome to OmniLedger</h1>
+          <p className="mb-8 text-sm text-muted-foreground">
+            Let's connect your database. Choose a setup path to get started.
+          </p>
 
-              <Button
-                onClick={handleAdvancedSetup}
-                className="w-full h-auto p-6 flex flex-col items-start gap-3"
-                variant="outline"
-              >
-                <div className="flex items-center gap-3 w-full">
-                  <Server className="h-6 w-6 text-primary" />
-                  <div className="flex-1 text-left">
-                    <div className="font-semibold">Advanced Setup</div>
-                    <div className="text-sm text-muted-foreground">
-                      Connect to PostgreSQL, MySQL, or MSSQL server.
-                    </div>
-                  </div>
-                  <ArrowRight className="h-5 w-5" />
-                </div>
-              </Button>
+          <div className="space-y-3">
+            <OptionCard
+              icon={HardDrive}
+              title="Quick Setup"
+              description="SQLite file on your local machine. No server required."
+              badge="Recommended"
+              onClick={handleQuickSetup}
+            />
+            <OptionCard
+              icon={Server}
+              title="Advanced Setup"
+              description="Connect to PostgreSQL, MySQL, or MSSQL."
+              onClick={handleAdvancedSetup}
+            />
+          </div>
 
-              <div className="pt-4 border-t">
-                <Button
-                  onClick={() => navigate("/")}
-                  variant="ghost"
-                  className="w-full"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/")}
+            className="mt-6 w-full text-muted-foreground"
+          >
+            Cancel
+          </Button>
         </div>
-      </div>
+      </WizardShell>
     );
   }
 
-  // Step 2: Database Type Selection (Advanced)
+  // ── Step 2: DB type selection ──────────────────────────────────────────────
   if (currentStep === 2) {
+    const dbTypes: { type: DatabaseType; label: string; port: string }[] = [
+      { type: "postgresql", label: "PostgreSQL", port: "5432" },
+      { type: "mysql", label: "MySQL", port: "3306" },
+      { type: "mssql", label: "SQL Server", port: "1433" },
+      { type: "sqlite", label: "SQLite", port: "—" },
+    ];
+
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Database Type</CardTitle>
-              <CardDescription>
-                Choose the type of database you want to connect to
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Button
-                  onClick={() => handleDatabaseTypeSelect("sqlite")}
-                  variant="outline"
-                  className="h-auto p-6 flex flex-col gap-2"
-                >
-                  <Database className="h-8 w-8" />
-                  <span className="font-semibold">SQLite</span>
-                  <span className="text-xs text-muted-foreground">Local file database</span>
-                </Button>
+      <WizardShell step={2} totalSteps={3}>
+        <div className="p-8">
+          <button
+            onClick={handleBack}
+            className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back
+          </button>
+          <h2 className="mb-1 text-xl font-bold">Choose Database Type</h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            Select the database engine you want to connect to.
+          </p>
 
-                <Button
-                  onClick={() => handleDatabaseTypeSelect("postgresql")}
-                  variant="outline"
-                  className="h-auto p-6 flex flex-col gap-2"
-                >
-                  <Server className="h-8 w-8" />
-                  <span className="font-semibold">PostgreSQL</span>
-                  <span className="text-xs text-muted-foreground">Production database</span>
-                </Button>
-
-                <Button
-                  onClick={() => handleDatabaseTypeSelect("mysql")}
-                  variant="outline"
-                  className="h-auto p-6 flex flex-col gap-2"
-                >
-                  <Server className="h-8 w-8" />
-                  <span className="font-semibold">MySQL</span>
-                  <span className="text-xs text-muted-foreground">Popular database</span>
-                </Button>
-
-                <Button
-                  onClick={() => handleDatabaseTypeSelect("mssql")}
-                  variant="outline"
-                  className="h-auto p-6 flex flex-col gap-2"
-                >
-                  <Server className="h-8 w-8" />
-                  <span className="font-semibold">MSSQL</span>
-                  <span className="text-xs text-muted-foreground">SQL Server</span>
-                </Button>
-              </div>
-
-              <div className="flex justify-between pt-4">
-                <Button onClick={handleBack} variant="outline">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-2 gap-3">
+            {dbTypes.map(({ type, label, port }) => (
+              <button
+                key={type}
+                onClick={() => handleDatabaseTypeSelect(type)}
+                className={cn(
+                  "group flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-all",
+                  "hover:border-primary/50 hover:bg-primary/5",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                )}
+              >
+                <Database className="mb-1 h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                <span className="font-semibold">{label}</span>
+                {port !== "—" && (
+                  <span className="text-xs text-muted-foreground">
+                    Default port {port}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </WizardShell>
     );
   }
 
-  // Step 3: Connection Details (Advanced)
+  // ── Step 3: Connection details ─────────────────────────────────────────────
   if (currentStep === 3) {
     const isSQLite = wizardData.type === "sqlite";
-    
-    return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Connection Details</CardTitle>
-              <CardDescription>
-                Enter your database connection information
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {isSQLite ? (
-                <div className="space-y-2">
-                  <Label htmlFor="connectionString">
-                    Database File Path <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="connectionString"
-                    value={wizardData.config.connectionString || ""}
-                    onChange={(e) => handleConfigUpdate("connectionString", e.target.value)}
-                    placeholder="file:./data/omniledger.db"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    SQLite file path. Use "file:" prefix for absolute paths.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="host">Host <span className="text-destructive">*</span></Label>
-                    <Input
-                      id="host"
-                      value={wizardData.config.host || ""}
-                      onChange={(e) => handleConfigUpdate("host", e.target.value)}
-                      placeholder="localhost"
-                      required
-                    />
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="port">Port <span className="text-destructive">*</span></Label>
+    return (
+      <WizardShell step={3} totalSteps={3}>
+        <div className="p-8">
+          <button
+            onClick={handleBack}
+            className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back
+          </button>
+          <h2 className="mb-1 text-xl font-bold">Connection Details</h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            Enter your {wizardData.type?.toUpperCase()} connection information.
+          </p>
+
+          <div className="space-y-4">
+            {isSQLite ? (
+              <Field
+                label="Database File Path"
+                required
+                hint='Use "file:" prefix for absolute paths.'
+              >
+                <Input
+                  value={wizardData.config.connectionString || ""}
+                  onChange={(e) =>
+                    handleConfigUpdate("connectionString", e.target.value)
+                  }
+                  placeholder="file:./data/omniledger.db"
+                />
+              </Field>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <Field label="Host" required>
+                      <Input
+                        value={wizardData.config.host || ""}
+                        onChange={(e) =>
+                          handleConfigUpdate("host", e.target.value)
+                        }
+                        placeholder="localhost"
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Port" required>
                     <Input
-                      id="port"
                       type="number"
                       value={wizardData.config.port || ""}
-                      onChange={(e) => handleConfigUpdate("port", parseInt(e.target.value))}
-                      placeholder={wizardData.type === "postgresql" ? "5432" : wizardData.type === "mysql" ? "3306" : "1433"}
-                      required
+                      onChange={(e) =>
+                        handleConfigUpdate("port", parseInt(e.target.value))
+                      }
+                      placeholder={
+                        wizardData.type === "postgresql"
+                          ? "5432"
+                          : wizardData.type === "mysql"
+                          ? "3306"
+                          : "1433"
+                      }
                     />
-                  </div>
+                  </Field>
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="database">Database Name <span className="text-destructive">*</span></Label>
-                    <Input
-                      id="database"
-                      value={wizardData.config.database || ""}
-                      onChange={(e) => handleConfigUpdate("database", e.target.value)}
-                      placeholder="omniledger"
-                      required
-                    />
-                  </div>
+                <Field label="Database Name" required>
+                  <Input
+                    value={wizardData.config.database || ""}
+                    onChange={(e) =>
+                      handleConfigUpdate("database", e.target.value)
+                    }
+                    placeholder="omniledger"
+                  />
+                </Field>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Username <span className="text-destructive">*</span></Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Username" required>
                     <Input
-                      id="username"
                       value={wizardData.config.username || ""}
-                      onChange={(e) => handleConfigUpdate("username", e.target.value)}
+                      onChange={(e) =>
+                        handleConfigUpdate("username", e.target.value)
+                      }
                       placeholder="database_user"
-                      required
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
+                  </Field>
+                  <Field label="Password">
                     <Input
-                      id="password"
                       type="password"
                       value={wizardData.config.password || ""}
-                      onChange={(e) => handleConfigUpdate("password", e.target.value)}
+                      onChange={(e) =>
+                        handleConfigUpdate("password", e.target.value)
+                      }
                       placeholder="••••••••"
-                      required
                     />
-                  </div>
-                </>
-              )}
-
-              {errorDetails && (
-                <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
-                  {errorDetails.message}
+                  </Field>
                 </div>
-              )}
+              </>
+            )}
 
-              <div className="flex justify-between pt-4">
-                <Button onClick={handleBack} variant="outline">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-                <Button
-                  onClick={handleTestConnection}
-                  disabled={testing}
-                >
-                  {testing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Testing...
-                    </>
-                  ) : (
-                    <>
-                      Test Connection
-                      <ArrowRight className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
+            {errorDetails && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {errorDetails.message}
+                {errorDetails.suggestion && (
+                  <p className="mt-1 text-xs opacity-80">{errorDetails.suggestion}</p>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
+
+          <div className="mt-8 flex justify-between">
+            <Button variant="outline" onClick={handleBack} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <Button
+              onClick={handleTestConnection}
+              disabled={testing}
+              className="gap-2"
+            >
+              {testing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              {testing ? "Testing…" : isSQLite ? "Continue" : "Test & Continue"}
+              {!testing && <ArrowRight className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
-      </div>
+      </WizardShell>
     );
   }
 
-  // Step 4: Initialize Database (if needed)
+  // ── Step 4: Initializing ───────────────────────────────────────────────────
   if (currentStep === 4) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Initialize Database</CardTitle>
-              <CardDescription>
-                Setting up database tables and schema...
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary mb-4" />
-                <p className="text-muted-foreground">Initializing database schema...</p>
-              </div>
-            </CardContent>
-          </Card>
+      <WizardShell step={3} totalSteps={3}>
+        <div className="flex flex-col items-center p-12 text-center">
+          <Loader2 className="mb-4 h-10 w-10 animate-spin text-primary" />
+          <h2 className="text-lg font-semibold">Setting Up Database</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Creating tables and schema…
+          </p>
         </div>
-      </div>
+      </WizardShell>
     );
   }
 
-  // Step 5: Success & Finish
+  // ── Step 5: Success ────────────────────────────────────────────────────────
   if (currentStep === 5) {
-    return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-              </div>
-              <CardTitle className="text-2xl">Setup Complete!</CardTitle>
-              <CardDescription className="text-base">
-                Your database connection has been configured successfully.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-muted rounded-md">
-                <p className="text-sm font-medium mb-2">Configuration Summary:</p>
-                <p className="text-sm text-muted-foreground">
-                  Type: <span className="font-mono">{wizardData.type}</span>
-                </p>
-                {wizardData.config.connectionString && (
-                  <p className="text-sm text-muted-foreground">
-                    Path: <span className="font-mono">{wizardData.config.connectionString}</span>
-                  </p>
-                )}
-                {wizardData.config.host && (
-                  <>
-                    <p className="text-sm text-muted-foreground">
-                      Host: <span className="font-mono">{wizardData.config.host}</span>
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Database: <span className="font-mono">{wizardData.config.database}</span>
-                    </p>
-                  </>
-                )}
-              </div>
+    const cfg = wizardData.config;
+    const isQuick = wizardData.setupType === "quick";
 
-              <div className="flex justify-between pt-4">
-                <Button onClick={handleBack} variant="outline">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-                <Button
-                  onClick={handleFinish}
-                  disabled={loading}
-                  className="min-w-[120px]"
+    return (
+      <WizardShell step={3} totalSteps={3}>
+        <div className="p-8">
+          {/* Success icon */}
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-500/10">
+            <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400" />
+          </div>
+
+          <h2 className="mb-1 text-2xl font-bold">
+            {isQuick ? "Ready to Go!" : "Connection Verified"}
+          </h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            Your database has been configured successfully.
+          </p>
+
+          {/* Config summary */}
+          <div className="mb-6 space-y-2 rounded-xl border bg-muted/30 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Type</span>
+              <span className="font-mono font-medium">
+                {cfg.type?.toUpperCase()}
+              </span>
+            </div>
+            {cfg.connectionString && (
+              <div className="flex items-start justify-between gap-4">
+                <span className="shrink-0 text-muted-foreground">Path</span>
+                <span
+                  className="truncate text-right font-mono text-xs"
+                  title={cfg.connectionString}
                 >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      Finish
-                      <CheckCircle2 className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
+                  {cfg.connectionString}
+                </span>
               </div>
-            </CardContent>
-          </Card>
+            )}
+            {cfg.host && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Host</span>
+                  <span className="font-mono">{cfg.host}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Database</span>
+                  <span className="font-mono">{cfg.database}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <Button
+              onClick={handleFinish}
+              disabled={loading}
+              className="flex-1 gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              {loading ? "Saving…" : "Get Started"}
+            </Button>
+          </div>
         </div>
-      </div>
+      </WizardShell>
     );
   }
 
   return null;
 }
-
