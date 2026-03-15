@@ -500,6 +500,7 @@ export function DatabaseConfiguration() {
       localStorage.setItem("omniledger_db_config", JSON.stringify(formData));
 
       // Notify main process of active config
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).electronAPI?.setActiveDatabaseConfig(formData);
 
       // Navigate back to splash screen

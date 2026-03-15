@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, Tag, Loader2, Plus, AlertTriangle, CheckCircle, Calendar, Filter, Trash2, Edit, Search } from "lucide-react";
+import { Package, Plus, AlertTriangle, CheckCircle, Trash2, Edit, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AppLayout } from "./AppLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useCompanyCurrency } from "../hooks/useCompanyCurrency";
 
@@ -44,12 +43,39 @@ export function ProductsScreen() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showScrollHint, setShowScrollHint] = useState(() => {
+    try {
+      return !sessionStorage.getItem("products-scroll-hint-dismissed");
+    } catch {
+      return true;
+    }
+  });
+  const [showRightGradient, setShowRightGradient] = useState(true);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  const handleTableScroll = useCallback(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    setShowScrollHint(false);
+    try {
+      sessionStorage.setItem("products-scroll-hint-dismissed", "1");
+    } catch {}
+    const scrolledToEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+    setShowRightGradient(!scrolledToEnd);
+  }, []);
 
   useEffect(() => {
     if (companyId) {
       loadProducts();
     }
-  }, [companyId, location.pathname]); // Reload when pathname changes (e.g., returning from form)
+  }, [companyId, location.pathname]);
+
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el || loading || products.length === 0) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth;
+    setShowRightGradient(hasOverflow);
+  }, [loading, products.length]);
 
   useEffect(() => {
     // Filter products based on all filters
@@ -145,17 +171,6 @@ export function ProductsScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-          <p className="text-muted-foreground">Loading products...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -171,15 +186,15 @@ export function ProductsScreen() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-background p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="min-h-screen bg-background p-4 sm:p-6 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <Package className="h-8 w-8" />
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2 sm:gap-3">
+              <Package className="h-6 w-6 sm:h-8 sm:w-8" />
               Products & Inventory
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-0.5 text-sm sm:text-base">
               Manage your product catalog and inventory
             </p>
           </div>
@@ -189,248 +204,296 @@ export function ProductsScreen() {
           </Button>
         </div>
 
-        {/* Filter Section */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, SKU, or description..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              
-              {/* Stock Filter */}
-              <div className="flex items-center gap-2">
-                <Label htmlFor="stockFilter" className="whitespace-nowrap text-sm">
-                  Stock:
-                </Label>
-                <Select
-                  value={stockFilter}
-                  onValueChange={(value) => setStockFilter(value as StockFilter)}
-                >
-                  <SelectTrigger id="stockFilter" className="w-full">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Products</SelectItem>
-                    <SelectItem value="in_stock">In Stock</SelectItem>
-                    <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-                    <SelectItem value="expiring_soon">Expiring Soon</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Category Filter */}
-              <div className="flex items-center gap-2">
-                <Label htmlFor="categoryFilter" className="whitespace-nowrap text-sm">
-                  Category:
-                </Label>
-                <Select
-                  value={categoryFilter}
-                  onValueChange={setCategoryFilter}
-                >
-                  <SelectTrigger id="categoryFilter" className="w-full">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {Array.from(new Set(allProducts.map(p => p.category).filter(Boolean))).map(category => (
-                      <SelectItem key={category} value={category!}>{category}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {(stockFilter !== "all" || categoryFilter !== "all" || searchQuery.trim()) && (
-              <div className="mt-4 text-sm text-muted-foreground">
-                Showing {products.length} of {allProducts.length} product{allProducts.length !== 1 ? "s" : ""}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Filters Toolbar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              disabled={loading}
+            />
+          </div>
+          <Select
+            value={stockFilter}
+            onValueChange={(value) => setStockFilter(value as StockFilter)}
+            disabled={loading}
+          >
+            <SelectTrigger id="stockFilter" className="w-[160px] shrink-0">
+              <SelectValue placeholder="Stock" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Products</SelectItem>
+              <SelectItem value="in_stock">In Stock</SelectItem>
+              <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+              <SelectItem value="expiring_soon">Expiring Soon</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter} disabled={loading}>
+            <SelectTrigger id="categoryFilter" className="w-[180px] shrink-0">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {Array.from(new Set(allProducts.map(p => p.category).filter(Boolean))).map(category => (
+                <SelectItem key={category} value={category!}>{category}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(stockFilter !== "all" || categoryFilter !== "all" || searchQuery.trim()) && (
+            <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0">
+              {products.length} of {allProducts.length}
+            </span>
+          )}
+        </div>
 
-        {products.length === 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>No Products</CardTitle>
-              <CardDescription>
-                Get started by adding your first product.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left p-4 text-sm font-medium">SKU</th>
-                      <th className="text-left p-4 text-sm font-medium">Name</th>
-                      <th className="text-left p-4 text-sm font-medium">Unit</th>
-                      <th className="text-left p-4 text-sm font-medium">Type</th>
-                      <th className="text-left p-4 text-sm font-medium">Category</th>
-                      <th className="text-left p-4 text-sm font-medium">Vendor</th>
-                      <th className="text-right p-4 text-sm font-medium">Stock Status</th>
-                      <th className="text-right p-4 text-sm font-medium">Available</th>
-                      <th className="text-left p-4 text-sm font-medium">Unit Price / Expiry</th>
+        {/* Table Container */}
+        <div className="rounded-lg sm:rounded-xl border border-[#e5e7eb] bg-white overflow-hidden">
+          {showScrollHint && !loading && products.length > 0 && (
+            <p className="px-4 py-2 text-xs text-muted-foreground border-b border-gray-100">
+              Scroll horizontally to see more product details →
+            </p>
+          )}
+          {loading ? (
+            <div
+              ref={tableScrollRef}
+              className="products-table-scroll w-full relative"
+              onScroll={handleTableScroll}
+            >
+              <div
+                className="absolute right-0 top-0 h-full w-10 pointer-events-none z-10"
+                style={{ background: "linear-gradient(to left, white, transparent)" }}
+              />
+              <table className="w-full min-w-[880px] sm:min-w-[1000px] md:min-w-[1200px]">
+                <thead>
+                  <tr className="border-b border-[#e5e7eb] bg-[#f8fafc]">
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky left-0 top-0 z-20 bg-[#f8fafc] min-w-[90px] sm:min-w-[120px] w-[90px] sm:w-[120px] border-r border-gray-100">SKU</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky left-[90px] sm:left-[120px] top-0 z-20 bg-[#f8fafc] min-w-[160px] sm:min-w-[240px] w-[160px] sm:w-[240px] border-r border-gray-100">Name</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky top-0 z-20 bg-[#f8fafc] min-w-[100px] sm:min-w-[140px]">Category</th>
+                    <th className="text-right py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky top-0 z-20 bg-[#f8fafc] min-w-[80px] sm:min-w-[100px]">Stock Status</th>
+                    <th className="text-right py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky top-0 z-20 bg-[#f8fafc] min-w-[70px] sm:min-w-[90px]">Available</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-500 sticky top-0 z-20 bg-[#f8fafc] min-w-[80px] sm:min-w-[120px]">Type</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-500 sticky top-0 z-20 bg-[#f8fafc] min-w-[60px] sm:min-w-[80px]">Unit</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-500 sticky top-0 z-20 bg-[#f8fafc] min-w-[90px] sm:min-w-[120px]">Vendor</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-500 sticky top-0 z-20 bg-[#f8fafc] min-w-[110px] sm:min-w-[140px]">Unit Price / Expiry</th>
+                    <th className="text-center py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky right-0 top-0 z-20 bg-[#f8fafc] min-w-[80px] sm:min-w-[100px] w-[80px] sm:w-[100px] border-l border-gray-200 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i} className="border-b border-gray-100 last:border-b-0">
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 min-w-[90px] sm:min-w-[120px] w-[90px] sm:w-[120px] sticky left-0 z-10 bg-white border-r border-gray-100"><div className="h-4 w-16 sm:w-20 rounded bg-gray-200 animate-pulse" /></td>
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 min-w-[160px] sm:min-w-[240px] w-[160px] sm:w-[240px] sticky left-[90px] sm:left-[120px] z-10 bg-white border-r border-gray-100"><div className="h-4 w-24 sm:w-32 rounded bg-gray-200 animate-pulse" /></td>
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 min-w-[100px] sm:min-w-[140px]"><div className="h-4 w-12 sm:w-16 rounded bg-gray-200 animate-pulse" /></td>
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right min-w-[80px] sm:min-w-[100px]"><div className="h-5 w-16 rounded-full bg-gray-200 animate-pulse ml-auto" /></td>
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right min-w-[70px] sm:min-w-[90px]"><div className="h-4 w-8 rounded bg-gray-200 animate-pulse ml-auto" /></td>
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 min-w-[80px] sm:min-w-[120px]"><div className="h-4 w-10 sm:w-12 rounded bg-gray-200 animate-pulse" /></td>
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 min-w-[60px] sm:min-w-[80px]"><div className="h-4 w-8 sm:w-10 rounded bg-gray-200 animate-pulse" /></td>
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 min-w-[90px] sm:min-w-[120px]"><div className="h-4 w-20 sm:w-24 rounded bg-gray-200 animate-pulse" /></td>
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 min-w-[110px] sm:min-w-[140px]"><div className="h-4 w-16 sm:w-20 rounded bg-gray-200 animate-pulse" /></td>
+                      <td className="py-2 sm:py-2.5 px-2 sm:px-3 min-w-[80px] sm:min-w-[100px] w-[80px] sm:w-[100px] sticky right-0 z-10 bg-white border-l border-gray-100 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]"><div className="h-7 sm:h-8 w-12 sm:w-16 rounded bg-gray-200 animate-pulse mx-auto" /></td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {products.map((product) => {
-                      const availableStock = product.availableStock ?? 0;
-                      const isInStock = product.isInStock ?? false;
-                      const nearestExpiry = product.nearestExpiryDate 
-                        ? new Date(product.nearestExpiryDate)
-                        : null;
-                      
-                      // Calculate days until expiry
-                      let daysUntilExpiry: number | null = null;
-                      if (nearestExpiry) {
-                        const diffTime = nearestExpiry.getTime() - new Date().getTime();
-                        daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                      }
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="py-12 sm:py-16 px-4 sm:px-6 text-center">
+              <p className="text-muted-foreground text-base mb-4">No products yet.</p>
+              <Button onClick={() => navigate(`/company/${companyId}/products/new`)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add your first product
+              </Button>
+            </div>
+          ) : (
+            <div
+              ref={tableScrollRef}
+              className="products-table-scroll w-full relative"
+              onScroll={handleTableScroll}
+            >
+              {showRightGradient && (
+                <div
+                  className="absolute right-0 top-0 h-full w-10 pointer-events-none z-10"
+                  style={{ background: "linear-gradient(to left, white, transparent)" }}
+                />
+              )}
+              <table className="w-full min-w-[880px] sm:min-w-[1000px] md:min-w-[1200px]">
+                <thead>
+                  <tr className="border-b border-[#e5e7eb] bg-[#f8fafc]">
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky left-0 top-0 z-20 bg-[#f8fafc] min-w-[90px] sm:min-w-[120px] w-[90px] sm:w-[120px] border-r border-gray-100">SKU</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky left-[90px] sm:left-[120px] top-0 z-20 bg-[#f8fafc] min-w-[160px] sm:min-w-[240px] w-[160px] sm:w-[240px] border-r border-gray-100">Name</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky top-0 z-20 bg-[#f8fafc] min-w-[100px] sm:min-w-[140px]">Category</th>
+                    <th className="text-right py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky top-0 z-20 bg-[#f8fafc] min-w-[80px] sm:min-w-[100px]">Stock Status</th>
+                    <th className="text-right py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky top-0 z-20 bg-[#f8fafc] min-w-[70px] sm:min-w-[90px]">Available</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-500 sticky top-0 z-20 bg-[#f8fafc] min-w-[80px] sm:min-w-[120px]">Type</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-500 sticky top-0 z-20 bg-[#f8fafc] min-w-[60px] sm:min-w-[80px]">Unit</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-500 sticky top-0 z-20 bg-[#f8fafc] min-w-[90px] sm:min-w-[120px]">Vendor</th>
+                    <th className="text-left py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-500 sticky top-0 z-20 bg-[#f8fafc] min-w-[110px] sm:min-w-[140px]">Unit Price / Expiry</th>
+                    <th className="text-center py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-[13px] font-semibold text-gray-800 sticky right-0 top-0 z-20 bg-[#f8fafc] min-w-[80px] sm:min-w-[100px] w-[80px] sm:w-[100px] border-l border-gray-200 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product) => {
+                    const availableStock = product.availableStock ?? 0;
+                    const isInStock = product.isInStock ?? false;
+                    const nearestExpiry = product.nearestExpiryDate
+                      ? new Date(product.nearestExpiryDate)
+                      : null;
 
-                      return (
-                        <tr
-                          key={product.id}
-                          className={`border-b hover:bg-muted/50 cursor-pointer transition-colors ${
-                            !isInStock ? 'bg-red-50/50' : product.hasExpiringSoon ? 'bg-yellow-50/50' : ''
-                          }`}
-                          onClick={() => navigate(`/company/${companyId}/products/${product.id}`)}
-                        >
-                          <td className="p-4">
-                            <div className="flex items-center gap-2 font-medium">
-                              <Package className="h-4 w-4 text-muted-foreground" />
-                              {product.sku}
-                            </div>
-                          </td>
-                          <td className="p-4 font-medium">
+                    let daysUntilExpiry: number | null = null;
+                    if (nearestExpiry) {
+                      const diffTime = nearestExpiry.getTime() - new Date().getTime();
+                      daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    }
+
+                    const rowBg = !isInStock ? "bg-red-50/50" : product.hasExpiringSoon ? "bg-yellow-50/50" : "bg-white";
+                    const stickyCellBg = !isInStock ? "bg-red-50/50 group-hover:bg-[#f9fafb]" : product.hasExpiringSoon ? "bg-yellow-50/50 group-hover:bg-[#f9fafb]" : "bg-white group-hover:bg-[#f9fafb]";
+
+                    return (
+                      <tr
+                        key={product.id}
+                        className={`border-b border-gray-100 last:border-b-0 group cursor-pointer transition-colors hover:bg-[#f9fafb] ${rowBg}`}
+                        onClick={() => navigate(`/company/${companyId}/products/${product.id}`)}
+                      >
+                        <td className={`py-2 sm:py-2.5 px-2 sm:px-3 min-w-[90px] sm:min-w-[120px] w-[90px] sm:w-[120px] sticky left-0 z-10 border-r border-gray-100 ${stickyCellBg}`}>
+                          <span className="font-medium text-xs sm:text-sm">{product.sku}</span>
+                        </td>
+                        <td className={`py-2 sm:py-2.5 px-2 sm:px-3 min-w-[160px] sm:min-w-[240px] w-[160px] sm:w-[240px] sticky left-[90px] sm:left-[120px] z-10 border-r border-gray-100 font-medium text-xs sm:text-sm ${stickyCellBg}`}>
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 sm:h-[18px] sm:w-[18px] text-muted-foreground shrink-0 opacity-70" />
                             {product.name}
-                          </td>
-                          <td className="p-4 text-sm text-muted-foreground">
-                            {product.unitOfMeasurement || "pcs"}
-                          </td>
-                          <td className="p-4">
-                            {product.trackByBatch === false ? (
-                              <Badge variant="outline" className="text-xs">Item</Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">Batch</Badge>
-                            )}
-                          </td>
-                          <td className="p-4 text-sm">
-                            {product.category ? (
-                              <div className="flex items-center gap-2">
-                                <Tag className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">{product.category}</span>
-                              </div>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
-                          <td className="p-4 text-sm">
-                            {product.vendor ? (
-                              <span className="text-muted-foreground">{product.vendor.name}</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                          <td className="p-4 text-right">
-                            {isInStock ? (
-                              <div className="flex items-center justify-end gap-2 text-green-600">
-                                <CheckCircle className="h-4 w-4" />
-                                <span className="font-semibold">In Stock</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-end gap-2 text-red-600">
-                                <AlertTriangle className="h-4 w-4" />
-                                <span className="font-semibold">Out of Stock</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-4 text-right">
-                            <span className={`font-semibold ${isInStock ? 'text-green-600' : 'text-red-600'}`}>
-                              {availableStock}
+                          </div>
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm min-w-[110px] sm:min-w-[140px]">
+                          {product.category ? (
+                            <span className="text-gray-500">{product.category}</span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right min-w-[80px] sm:min-w-[100px]">
+                          {isInStock ? (
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium"
+                              style={{
+                                backgroundColor: "rgba(34,197,94,0.1)",
+                                color: "#16a34a",
+                              }}
+                            >
+                              <CheckCircle className="h-3.5 w-3.5" />
+                              In Stock
                             </span>
-                          </td>
-                          <td className="p-4 text-sm">
-                            {product.trackByBatch === false ? (
-                              product.unitPrice != null ? (
-                                <span className="font-medium">{format(product.unitPrice)}</span>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )
-                            ) : nearestExpiry ? (
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <div>
-                                  <div className="font-medium">
-                                    {nearestExpiry.toLocaleDateString()}
-                                  </div>
-                                  {daysUntilExpiry !== null && (
-                                    <div className={`text-xs ${
-                                      daysUntilExpiry < 0 
-                                        ? 'text-red-600 font-semibold' 
-                                        : daysUntilExpiry <= 7 
-                                        ? 'text-orange-600 font-semibold'
-                                        : daysUntilExpiry <= 30
-                                        ? 'text-yellow-600'
-                                        : 'text-muted-foreground'
-                                    }`}>
-                                      {daysUntilExpiry < 0 
-                                        ? `Expired ${Math.abs(daysUntilExpiry)} days ago`
-                                        : daysUntilExpiry === 0
-                                        ? 'Expires today'
-                                        : daysUntilExpiry === 1
-                                        ? 'Expires tomorrow'
-                                        : `${daysUntilExpiry} days left`
-                                      }
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                          ) : (
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium"
+                              style={{
+                                backgroundColor: "rgba(239,68,68,0.1)",
+                                color: "#dc2626",
+                              }}
+                            >
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              Out of Stock
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-right min-w-[70px] sm:min-w-[90px]">
+                          <span
+                            className={`font-semibold ${isInStock ? "text-[#16a34a]" : "text-red-600"}`}
+                          >
+                            {availableStock}
+                          </span>
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 min-w-[80px] sm:min-w-[120px]">
+                          {product.trackByBatch === false ? (
+                            <Badge variant="outline" className="text-xs text-gray-500">Item</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs text-gray-500">Batch</Badge>
+                          )}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground min-w-[60px] sm:min-w-[80px]">
+                          {product.unitOfMeasurement || "pcs"}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm text-gray-500 min-w-[90px] sm:min-w-[120px]">
+                          {product.vendor?.name ?? "—"}
+                        </td>
+                        <td className="py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm min-w-[110px] sm:min-w-[140px]">
+                          {product.trackByBatch === false ? (
+                            product.unitPrice != null ? (
+                              <span className="font-medium">{format(product.unitPrice)}</span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/company/${companyId}/products/${product.id}`);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(product.id, product.name);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
+                            )
+                          ) : nearestExpiry ? (
+                            <div>
+                              <div className="font-medium">
+                                {nearestExpiry.toLocaleDateString("en-GB", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </div>
+                              {daysUntilExpiry !== null && (
+                                <div
+                                  className={`text-xs mt-0.5 ${
+                                    daysUntilExpiry < 0
+                                      ? "text-red-600 font-medium"
+                                      : daysUntilExpiry <= 7
+                                      ? "text-orange-600 font-medium"
+                                      : daysUntilExpiry <= 30
+                                      ? "text-amber-600"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {daysUntilExpiry < 0
+                                    ? `Expired ${Math.abs(daysUntilExpiry)} days ago`
+                                    : daysUntilExpiry === 0
+                                    ? "Expires today"
+                                    : daysUntilExpiry === 1
+                                    ? "Expires tomorrow"
+                                    : `${daysUntilExpiry} days left`
+                                  }
+                                </div>
+                              )}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td
+                          className={`py-2 sm:py-2.5 px-2 sm:px-3 min-w-[80px] sm:min-w-[100px] w-[80px] sm:w-[100px] sticky right-0 z-10 border-l border-gray-100 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)] ${stickyCellBg}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-center gap-2.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="Edit product"
+                              onClick={() => navigate(`/company/${companyId}/products/${product.id}`)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Delete product"
+                              onClick={() => handleDelete(product.id, product.name)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
         </div>
       </div>
     </AppLayout>
