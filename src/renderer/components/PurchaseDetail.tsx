@@ -97,6 +97,7 @@ export function PurchaseDetail() {
     notes: "",
   });
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     if (purchaseId && companyId) {
@@ -183,6 +184,27 @@ export function PurchaseDetail() {
     : 0;
   const remainingBalance = totalAmount - paidAmount;
 
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!purchase || newStatus === purchase.status) return;
+
+    setUpdatingStatus(true);
+    setError(null);
+
+    try {
+      const result = await (window as any).electronAPI?.updatePurchaseStatus(purchaseId!, newStatus);
+
+      if (result?.success) {
+        setPurchase({ ...purchase, status: newStatus });
+      } else {
+        alert(result?.error || "Failed to update status");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const handleAddPayment = async () => {
     if (!paymentForm.amount || parseFloat(paymentForm.amount) <= 0) {
       alert("Please enter a valid payment amount");
@@ -244,17 +266,32 @@ export function PurchaseDetail() {
                 <Printer className="h-4 w-4 mr-2" />
                 Preview & Print
               </Button>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                purchase.status === 'completed' 
-                  ? 'bg-green-100 text-green-800' 
-                  : purchase.status === 'cancelled'
-                  ? 'bg-red-100 text-red-800'
-                  : purchase.status === 'pending'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-gray-100 text-gray-800'
-              }`}>
-                {purchase.status.charAt(0).toUpperCase() + purchase.status.slice(1)}
-              </span>
+              <Select
+                value={purchase.status}
+                onValueChange={handleStatusUpdate}
+                disabled={updatingStatus}
+              >
+                <SelectTrigger
+                  className={`w-[130px] h-8 border-0 shadow-none focus:ring-2 focus:ring-offset-1 text-xs font-medium ${
+                    purchase.status === 'completed'
+                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                      : purchase.status === 'cancelled'
+                      ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                      : purchase.status === 'pending'
+                      ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  <SelectValue>
+                    {purchase.status.charAt(0).toUpperCase() + purchase.status.slice(1)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

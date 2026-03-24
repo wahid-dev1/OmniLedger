@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   createPurchase: (data: any) => ipcRenderer.invoke("create-purchase", data),
   deletePurchase: (purchaseId: string) => ipcRenderer.invoke("delete-purchase", purchaseId),
   addPurchasePayment: (purchaseId: string, data: any) => ipcRenderer.invoke("add-purchase-payment", purchaseId, data),
+  updatePurchaseStatus: (purchaseId: string, status: string) => ipcRenderer.invoke("update-purchase-status", purchaseId, status),
   getVendorPurchases: (vendorId: string) => ipcRenderer.invoke("get-vendor-purchases", vendorId),
   setActiveDatabaseConfig: (config: any) =>
     ipcRenderer.invoke("set-active-database-config", config),
@@ -154,6 +155,7 @@ export type ElectronAPI = {
   createPurchase: (data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
   deletePurchase: (purchaseId: string) => Promise<{ success: boolean; error?: string }>;
   addPurchasePayment: (purchaseId: string, data: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  updatePurchaseStatus: (purchaseId: string, status: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   getVendorPurchases: (vendorId: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
   setActiveDatabaseConfig: (config: any) => Promise<{ success: boolean; error?: string }>;
   getActiveDatabaseConfig: () => Promise<{ success: boolean; config?: any; error?: string }>;
