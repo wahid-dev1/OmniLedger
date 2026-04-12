@@ -78,8 +78,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
   downloadUpdate: () => ipcRenderer.invoke("download-update"),
   quitAndInstall: () => ipcRenderer.invoke("quit-and-install"),
-  onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string | string[] }) => void) => {
-    const handler = (_: unknown, info: { version: string; releaseDate?: string; releaseNotes?: string | string[] }) => callback(info);
+  onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string }) => void) => {
+    const handler = (_: unknown, info: { version: string; releaseDate?: string; releaseNotes?: string }) => callback(info);
     ipcRenderer.on("update-available", handler);
     return () => ipcRenderer.removeListener("update-available", handler);
   },
@@ -168,7 +168,7 @@ export type ElectronAPI = {
   checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
   downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
   quitAndInstall: () => Promise<{ success: boolean; error?: string }>;
-  onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string | string[] }) => void) => () => void;
+  onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string }) => void) => () => void;
   onUpdateDownloaded: (callback: () => void) => () => void;
   onUpdateError: (callback: (error: string) => void) => () => void;
   // Mobile API Server
