@@ -4174,39 +4174,6 @@ ipcMain.handle('mobile-server:get-config', () => {
   }
 });
 
-// Get network interfaces (for displaying server address)
-ipcMain.handle('mobile-server:get-network-info', () => {
-  try {
-    const os = require('os');
-    const interfaces = os.networkInterfaces();
-    const addresses: Array<{ interface: string; address: string; family: string }> = [];
-
-    for (const name of Object.keys(interfaces)) {
-      for (const iface of interfaces[name] || []) {
-        // Skip internal (loopback) addresses
-        if (iface.family === 'IPv4' && !iface.internal) {
-          addresses.push({
-            interface: name,
-            address: iface.address,
-            family: iface.family,
-          });
-        }
-      }
-    }
-
-    return {
-      success: true,
-      data: addresses,
-    };
-  } catch (error) {
-    console.error('Error getting network info:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-});
-
 // Cleanup on app quit - stop API server if running
 app.on("before-quit", async () => {
   // Stop API server if running

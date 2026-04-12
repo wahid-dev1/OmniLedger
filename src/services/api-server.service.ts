@@ -8,6 +8,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { Server } from 'http';
+import { Tunnel } from 'cloudflared';
 import type { MobileServerConfig, ApiResponse } from '../shared/types';
 
 let apiServer: Express | null = null;
@@ -15,6 +16,93 @@ let httpServer: Server | null = null;
 let serverConfig: MobileServerConfig | null = null;
 let serverStatus: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' = 'stopped';
 let serverError: string | null = null;
+let cloudflareTunnel: Tunnel | null = null;
+let tunnelPublicUrl: string | null = null;
+let tunnelPublicError: string | null = null;
+/** Set true before SIGINT so unexpected `exit` handlers do not auto-restart. */
+let tunnelShutdownIntentional = false;
+let tunnelRestartTimer: ReturnType<typeof setTimeout> | null = null;
+let tunnelRestartAttempts = 0;
+const MAX_TUNNEL_RESTART_ATTEMPTS = 12;
+
+function clearTunnelRestartTimer(): void {
+  if (tunnelRestartTimer) {
+    clearTimeout(tunnelRestartTimer);
+    tunnelRestartTimer = null;
+  }
+}
+
+/**
+ * Quick (trycloudflare) tunnel to local HTTP. If the child exits while the API
+ * server is still running, we restart with backoff — Cloudflare 1033 usually means
+ * no active connector reached the edge.
+ */
+function attachQuickTunnel(port: number): void {
+  clearTunnelRestartTimer();
+  tunnelShutdownIntentional = false;
+
+  cloudflareTunnel = Tunnel.quick(`http://127.0.0.1:${port}`);
+
+  cloudflareTunnel.on('stderr', (chunk: string) => {
+    const line = chunk.trim();
+    if (!line) return;
+    if (/ERR |fatal|Failed|unable to connect|connection refused/i.test(line)) {
+      console.error('[cloudflared]', line);
+    }
+  });
+
+  cloudflareTunnel.once('url', (url: string) => {
+    tunnelPublicUrl = url;
+    tunnelPublicError = null;
+    tunnelRestartAttempts = 0;
+    console.log('Your public mobile endpoint:', url);
+  });
+
+  cloudflareTunnel.once('error', (err: Error) => {
+    tunnelPublicError = err.message;
+    console.error('Cloudflare tunnel error:', err);
+  });
+
+  cloudflareTunnel.on('exit', (code, signal) => {
+    const exited = cloudflareTunnel;
+    if (exited) {
+      exited.removeAllListeners();
+    }
+    cloudflareTunnel = null;
+    tunnelPublicUrl = null;
+
+    if (tunnelShutdownIntentional) {
+      tunnelShutdownIntentional = false;
+      tunnelRestartAttempts = 0;
+      clearTunnelRestartTimer();
+      return;
+    }
+
+    if (serverStatus !== 'running' || !httpServer) {
+      return;
+    }
+
+    tunnelRestartAttempts += 1;
+    if (tunnelRestartAttempts > MAX_TUNNEL_RESTART_ATTEMPTS) {
+      tunnelPublicError =
+        'Cloudflare tunnel stopped after repeated failures. Check outbound access to Cloudflare, firewall, and the main process logs for [cloudflared].';
+      console.error('[cloudflared] Giving up on quick tunnel after', tunnelRestartAttempts, 'attempts');
+      return;
+    }
+
+    const delayMs = Math.min(30_000, 1500 * 2 ** Math.min(tunnelRestartAttempts - 1, 5));
+    tunnelPublicError = `Tunnel disconnected (code ${code ?? '?'}${signal ? ` ${signal}` : ''}). Retrying in ${Math.ceil(delayMs / 1000)}s…`;
+    console.warn('[cloudflared] Tunnel process exited; scheduling restart in', delayMs, 'ms');
+
+    tunnelRestartTimer = setTimeout(() => {
+      tunnelRestartTimer = null;
+      if (serverStatus !== 'running' || !httpServer || cloudflareTunnel) {
+        return;
+      }
+      attachQuickTunnel(port);
+    }, delayMs);
+  });
+}
 
 export class ApiServerService {
   /**
@@ -62,24 +150,7 @@ export class ApiServerService {
         apiServer.use(cors(corsOptions));
       }
 
-      // Authentication middleware
-      if (config.requireAuth && config.apiKey) {
-        apiServer.use((req: Request, res: Response, next: NextFunction) => {
-          const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
-          
-          if (apiKey !== config.apiKey) {
-            return res.status(401).json({
-              success: false,
-              error: 'Unauthorized: Invalid or missing API key',
-            } as ApiResponse);
-          }
-          
-          next();
-        });
-      }
-
-      // Health check endpoint (no auth required)
-      apiServer.get('/health', (_req: Request, res: Response) => {
+      const healthHandler = (_req: Request, res: Response) => {
         res.json({
           success: true,
           data: {
@@ -88,7 +159,30 @@ export class ApiServerService {
             serverName: config.serverName || 'OmniLedger Server',
           },
         } as ApiResponse);
-      });
+      };
+      // Health must stay before auth (no API key). Register both paths for strict clients.
+      apiServer.get('/health', healthHandler);
+      apiServer.get('/health/', healthHandler);
+
+      // Authentication middleware (all routes registered below require a key when enabled)
+      if (config.requireAuth && config.apiKey) {
+        apiServer.use((req: Request, res: Response, next: NextFunction) => {
+          if (req.method === 'OPTIONS') {
+            return next();
+          }
+
+          const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+
+          if (apiKey !== config.apiKey) {
+            return res.status(401).json({
+              success: false,
+              error: 'Unauthorized: Invalid or missing API key',
+            } as ApiResponse);
+          }
+
+          next();
+        });
+      }
 
       // API routes
       this.setupRoutes(apiServer, getDatabaseConnection);
@@ -102,24 +196,42 @@ export class ApiServerService {
         } as ApiResponse);
       });
 
-      // Start server
+      // Start server (await listen so tunnel targets a live port)
       const host = config.host || '0.0.0.0';
       const port = config.port || 3000;
 
-      httpServer = apiServer.listen(port, host, () => {
-        console.log(`📱 Mobile API Server started on http://${host}:${port}`);
-        serverStatus = 'running';
+      await new Promise<void>((resolve, reject) => {
+        const server = apiServer!.listen(port, host, () => {
+          serverStatus = 'running';
+          serverError = null;
+          console.log(`📱 Mobile API Server started on http://${host}:${port}`);
+          resolve();
+        });
+        httpServer = server;
+        server.once('error', (error: Error & { code?: string }) => {
+          console.error('API Server Error:', error);
+          serverStatus = 'error';
+          serverError = error.message || 'Unknown error';
+          if (error.code === 'EADDRINUSE') {
+            serverError = `Port ${port} is already in use`;
+          }
+          reject(error);
+        });
       });
 
-      httpServer.on('error', (error: Error & { code?: string }) => {
+      httpServer!.on('error', (error: Error & { code?: string }) => {
         console.error('API Server Error:', error);
         serverStatus = 'error';
         serverError = error.message || 'Unknown error';
-        
         if (error.code === 'EADDRINUSE') {
           serverError = `Port ${port} is already in use`;
         }
       });
+
+      tunnelPublicUrl = null;
+      tunnelPublicError = null;
+      tunnelRestartAttempts = 0;
+      attachQuickTunnel(port);
 
       return {
         success: true,
@@ -129,6 +241,7 @@ export class ApiServerService {
     } catch (error) {
       serverStatus = 'error';
       serverError = error instanceof Error ? error.message : 'Unknown error';
+      await this.stop();
       return {
         success: false,
         error: serverError,
@@ -164,6 +277,33 @@ export class ApiServerService {
         PurchaseItem: sequelize.models.PurchaseItem || (await import('../database/models/PurchaseItem')).PurchaseItem,
       };
     };
+
+    // ===== COMPANIES =====
+    app.get('/api/companies', async (_req: Request, res: Response) => {
+      try {
+        const { Company } = await getModels();
+        const companies = await Company.findAll({
+          order: [['name', 'ASC']],
+        });
+
+        res.json({
+          success: true,
+          data: companies.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            address: c.address ?? null,
+            phone: c.phone ?? null,
+            email: c.email ?? null,
+            currency: c.currency,
+          })),
+        } as ApiResponse);
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch companies',
+        } as ApiResponse);
+      }
+    });
 
     // ===== PRODUCTS =====
     app.get('/api/products', async (req: Request, res: Response) => {
@@ -603,9 +743,25 @@ export class ApiServerService {
    */
   static async stop(): Promise<{ success: boolean; error?: string }> {
     try {
+      tunnelShutdownIntentional = true;
+      clearTunnelRestartTimer();
+      tunnelRestartAttempts = 0;
+
+      if (cloudflareTunnel) {
+        try {
+          cloudflareTunnel.removeAllListeners();
+          cloudflareTunnel.stop();
+        } catch {
+          /* ignore */
+        }
+        cloudflareTunnel = null;
+      }
+      tunnelPublicUrl = null;
+      tunnelPublicError = null;
+
       if (httpServer) {
         serverStatus = 'stopping';
-        
+
         return new Promise((resolve) => {
           httpServer?.close(() => {
             httpServer = null;
@@ -637,12 +793,16 @@ export class ApiServerService {
     config: MobileServerConfig | null;
     error: string | null;
     port?: number;
+    tunnelUrl: string | null;
+    tunnelError: string | null;
   } {
     return {
       status: serverStatus,
       config: serverConfig,
       error: serverError,
       port: httpServer?.address() ? (httpServer.address() as any).port : undefined,
+      tunnelUrl: tunnelPublicUrl,
+      tunnelError: tunnelPublicError,
     };
   }
 
