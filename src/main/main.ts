@@ -145,6 +145,28 @@ function createWindow() {
   return mainWindow;
 }
 
+/** Normalize electron-updater / GitHub release notes to a single HTML or text string for the renderer. */
+function serializeReleaseNotes(notes: unknown): string | undefined {
+  if (notes == null) return undefined;
+  if (typeof notes === "string") {
+    const t = notes.trim();
+    return t.length ? t : undefined;
+  }
+  if (!Array.isArray(notes)) return undefined;
+  const parts: string[] = [];
+  for (const item of notes) {
+    if (typeof item === "string") {
+      const t = item.trim();
+      if (t) parts.push(t);
+    } else if (typeof item === "object" && item !== null && "note" in item) {
+      const n = String((item as { note?: string }).note ?? "").trim();
+      if (n) parts.push(n);
+    }
+  }
+  if (!parts.length) return undefined;
+  return parts.join("\n\n");
+}
+
 // Initialize auto-updater (only in production packaged app)
 function setupAutoUpdater() {
   if (!app.isPackaged) return;
@@ -172,7 +194,7 @@ function setupAutoUpdater() {
     mainWindow?.webContents.send("update-available", {
       version: info.version,
       releaseDate: info.releaseDate,
-      releaseNotes: info.releaseNotes,
+      releaseNotes: serializeReleaseNotes(info.releaseNotes),
     });
   });
 

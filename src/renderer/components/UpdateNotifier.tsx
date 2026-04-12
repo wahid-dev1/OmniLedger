@@ -16,6 +16,7 @@ export function UpdateNotifier() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   useEffect(() => {
     const api = window.electronAPI;
@@ -25,17 +26,20 @@ export function UpdateNotifier() {
       setUpdateInfo(info);
       setIsDownloaded(false);
       setIsDownloading(false);
+      setDownloadError(null);
       setShowDialog(true);
     });
 
     const unsubDownloaded = api.onUpdateDownloaded(() => {
       setIsDownloading(false);
       setIsDownloaded(true);
+      setDownloadError(null);
     });
 
     const unsubError = api.onUpdateError((error) => {
       console.error("Update error:", error);
       setIsDownloading(false);
+      setDownloadError(error);
     });
 
     return () => {
@@ -46,11 +50,26 @@ export function UpdateNotifier() {
   }, []);
 
   const handleDownload = async () => {
-    const result = await window.electronAPI?.downloadUpdate?.();
-    if (result?.success) {
-      setIsDownloading(true);
-    } else if (result?.error) {
-      console.error("Download failed:", result.error);
+    const invoke = window.electronAPI?.downloadUpdate;
+    if (!invoke) {
+      setDownloadError(
+        "In-app updates only run in the installed app. Use a release build to download updates."
+      );
+      return;
+    }
+    setDownloadError(null);
+    setIsDownloading(true);
+    try {
+      const result = await invoke();
+      if (!result?.success) {
+        setDownloadError(result?.error ?? "Download failed.");
+        setIsDownloading(false);
+      }
+    } catch (e) {
+      setDownloadError(
+        e instanceof Error ? e.message : "Download failed unexpectedly."
+      );
+      setIsDownloading(false);
     }
   };
 
@@ -63,10 +82,14 @@ export function UpdateNotifier() {
   return (
     <UpdateAvailableDialog
       open={showDialog}
-      onClose={() => setShowDialog(false)}
+      onClose={() => {
+        setShowDialog(false);
+        setDownloadError(null);
+      }}
       updateInfo={updateInfo}
       isDownloading={isDownloading}
       isDownloaded={isDownloaded}
+      downloadError={downloadError}
       onDownload={handleDownload}
       onInstallAndRestart={handleInstallAndRestart}
     />
