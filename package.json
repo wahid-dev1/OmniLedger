@@ -1,6 +1,6 @@
 {
   "name": "omniledger",
-  "version": "1.0.9",
+  "version": "1.0.12",
   "description": "Desktop Inventory & Accounting System",
   "main": "dist-electron/main/main.js",
   "author": "wahid-dev1",
@@ -158,6 +158,9 @@
     "directories": {
       "output": "release"
     },
+    "asarUnpack": [
+      "**/node_modules/cloudflared/bin/**"
+    ],
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
