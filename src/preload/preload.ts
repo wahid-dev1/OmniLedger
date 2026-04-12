@@ -98,7 +98,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   stopMobileServer: () => ipcRenderer.invoke("mobile-server:stop"),
   getMobileServerStatus: () => ipcRenderer.invoke("mobile-server:status"),
   getMobileServerConfig: () => ipcRenderer.invoke("mobile-server:get-config"),
-  getNetworkInfo: () => ipcRenderer.invoke("mobile-server:get-network-info"),
 });
 
 // Type definitions for the exposed API
@@ -177,6 +176,5 @@ export type ElectronAPI = {
   stopMobileServer: () => Promise<{ success: boolean; error?: string }>;
   getMobileServerStatus: () => Promise<{ success: boolean; data?: any; error?: string }>;
   getMobileServerConfig: () => Promise<{ success: boolean; data?: any; error?: string }>;
-  getNetworkInfo: () => Promise<{ success: boolean; data?: Array<{ interface: string; address: string; family: string }>; error?: string }>;
 };
 
