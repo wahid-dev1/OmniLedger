@@ -7,8 +7,11 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { Server } from 'http';
-import { Tunnel } from 'cloudflared';
+import { app as electronApp } from 'electron';
+import { Tunnel, use as setCloudflaredBinary } from 'cloudflared';
 import type { MobileServerConfig, ApiResponse } from '../shared/types';
 
 let apiServer: Express | null = null;
@@ -24,6 +27,60 @@ let tunnelShutdownIntentional = false;
 let tunnelRestartTimer: ReturnType<typeof setTimeout> | null = null;
 let tunnelRestartAttempts = 0;
 const MAX_TUNNEL_RESTART_ATTEMPTS = 12;
+
+function cloudflaredExecutableName(): string {
+  return process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared';
+}
+
+let cloudflaredBinaryConfigured = false;
+
+/**
+ * The cloudflared npm package spawns a binary next to its package.json. In a
+ * packaged Electron app that path lives inside app.asar, where executables
+ * cannot be spawned (often surfaces as spawn ENOTDIR). Prefer the unpacked
+ * copy (see package.json build.asarUnpack) or CLOUDFLARED_BIN.
+ */
+function configureCloudflaredBinaryPath(): void {
+  if (cloudflaredBinaryConfigured) {
+    return;
+  }
+  cloudflaredBinaryConfigured = true;
+
+  const name = cloudflaredExecutableName();
+  const candidates: string[] = [];
+
+  if (process.env.CLOUDFLARED_BIN) {
+    candidates.push(process.env.CLOUDFLARED_BIN);
+  }
+
+  let packaged = false;
+  try {
+    packaged = electronApp.isPackaged;
+  } catch {
+    packaged = false;
+  }
+
+  if (packaged) {
+    candidates.push(
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'cloudflared', 'bin', name),
+    );
+  } else {
+    candidates.push(path.join(process.cwd(), 'node_modules', 'cloudflared', 'bin', name));
+    try {
+      const pkgDir = path.dirname(require.resolve('cloudflared/package.json'));
+      candidates.push(path.join(pkgDir, 'bin', name));
+    } catch {
+      /* optional dependency layout */
+    }
+  }
+
+  for (const p of candidates) {
+    if (p && existsSync(p)) {
+      setCloudflaredBinary(p);
+      return;
+    }
+  }
+}
 
 function clearTunnelRestartTimer(): void {
   if (tunnelRestartTimer) {
@@ -41,7 +98,16 @@ function attachQuickTunnel(port: number): void {
   clearTunnelRestartTimer();
   tunnelShutdownIntentional = false;
 
-  cloudflareTunnel = Tunnel.quick(`http://127.0.0.1:${port}`);
+  configureCloudflaredBinaryPath();
+
+  try {
+    cloudflareTunnel = Tunnel.quick(`http://127.0.0.1:${port}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tunnelPublicError = `Public tunnel could not start (${msg}). The API is still available on your local network; reinstall or set CLOUDFLARED_BIN if you need trycloudflare.`;
+    console.error('[cloudflared] Failed to spawn quick tunnel:', err);
+    return;
+  }
 
   cloudflareTunnel.on('stderr', (chunk: string) => {
     const line = chunk.trim();
