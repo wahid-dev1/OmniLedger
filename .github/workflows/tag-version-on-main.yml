@@ -1,0 +1,47 @@
+# After a PR merges to main, create git tag v{package.json version} if it does not exist yet.
+# That triggers "Build and Release" for Mac/Windows installers without a manual `git push origin v*`.
+
+name: Tag version on main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  tag-if-needed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version and push tag when missing
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          echo "Package version: ${VERSION} → tag ${TAG}"
+
+          git fetch origin --tags
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null 2>&1; then
+            TAG_SHA=$(git rev-parse "${TAG}^{}")
+            HEAD_SHA=$(git rev-parse HEAD)
+            if [ "${TAG_SHA}" = "${HEAD_SHA}" ]; then
+              echo "Tag ${TAG} already points at this commit; nothing to do."
+              exit 0
+            fi
+            echo "::error::Tag ${TAG} exists on another commit. Bump version in package.json in your PR."
+            exit 1
+          fi
+
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "refs/tags/${TAG}"
