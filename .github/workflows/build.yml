@@ -61,6 +61,8 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
 
+      # Note: latest.yml / latest-mac.yml are NOT produced with --publish never (electron-builder).
+      # Only upload real installers + blockmaps so globs never match zero files silently.
       - name: Upload Windows artifacts
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
@@ -68,7 +70,8 @@ jobs:
           name: windows-build
           path: |
             release/*.exe
-            release/latest.yml
+            release/*.blockmap
+          if-no-files-found: error
           retention-days: 30
 
       - name: Upload Mac artifacts
@@ -79,7 +82,8 @@ jobs:
           path: |
             release/*.dmg
             release/*.zip
-            release/latest-mac.yml
+            release/*.blockmap
+          if-no-files-found: error
           retention-days: 30
 
   release:
@@ -103,15 +107,37 @@ jobs:
           name: mac-build
           path: ./release/mac
 
+      - name: Verify installers before upload
+        run: |
+          set -euo pipefail
+          ls -la ./release/windows ./release/mac
+          WIN=$(find ./release/windows -maxdepth 2 -name '*.exe' | wc -l | tr -d ' ')
+          DMG=$(find ./release/mac -maxdepth 2 -name '*.dmg' | wc -l | tr -d ' ')
+          ZIP=$(find ./release/mac -maxdepth 2 -name '*.zip' | wc -l | tr -d ' ')
+          if [ "${WIN}" -lt 1 ]; then
+            echo "::error::No Windows .exe found under ./release/windows — build step did not produce installers."
+            exit 1
+          fi
+          if [ "${DMG}" -lt 1 ]; then
+            echo "::error::No macOS .dmg found under ./release/mac — build step did not produce installers."
+            exit 1
+          fi
+          if [ "${ZIP}" -lt 1 ]; then
+            echo "::error::No macOS .zip found under ./release/mac — zip target did not produce archives."
+            exit 1
+          fi
+
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
+          # Blockmaps may be absent in edge cases; installers are enforced above.
+          fail_on_unmatched_files: false
           files: |
             ./release/windows/*.exe
-            ./release/windows/latest.yml
+            ./release/windows/*.blockmap
             ./release/mac/*.dmg
             ./release/mac/*.zip
-            ./release/mac/latest-mac.yml
+            ./release/mac/*.blockmap
           draft: false
           prerelease: false
           generate_release_notes: true
