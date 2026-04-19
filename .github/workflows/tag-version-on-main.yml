@@ -12,6 +12,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: tag-version-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   actions: write
@@ -82,6 +86,7 @@ jobs:
           set -euo pipefail
           TAG="${{ steps.tag.outputs.tag_name }}"
           echo "Dispatching workflow for tag ${TAG}"
+          # Workflow filename under .github/workflows/ (also accepts workflow display name).
           gh workflow run build.yml \
             --repo "${GITHUB_REPOSITORY}" \
             --ref "${TAG}"

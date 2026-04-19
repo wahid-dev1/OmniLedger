@@ -9,6 +9,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-test:
     runs-on: ${{ matrix.os }}
@@ -58,4 +61,5 @@ jobs:
           path: |
             release/**
             dist-electron/**
+          if-no-files-found: warn
           retention-days: 7
