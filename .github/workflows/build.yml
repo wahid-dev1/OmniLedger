@@ -6,8 +6,11 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Optional label (build uses checked-out ref, not this field)'
+      release_tag:
+        description: >
+          Tag to build and attach installers to (e.g. v1.0.15). Use this when you click
+          "Run workflow" on branch main — otherwise the release step is skipped.
+          Or select the tag in the "Use workflow from" dropdown instead of main.
         required: false
         default: ''
         type: string
@@ -15,13 +18,52 @@ on:
 permissions:
   contents: write
 
-# One run per ref; avoid overlapping release builds for the same tag.
 concurrency:
-  group: build-release-${{ github.workflow }}-${{ github.ref }}
+  group: build-release-${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.release_tag }}
   cancel-in-progress: false
 
 jobs:
+  # Compute checkout ref and whether to run the release job (needs a version tag).
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      checkout_ref: ${{ steps.ctx.outputs.checkout_ref }}
+      release_ok: ${{ steps.ctx.outputs.release_ok }}
+      tag_name: ${{ steps.ctx.outputs.tag_name }}
+    steps:
+      - name: Resolve ref and release gate
+        id: ctx
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.release_tag }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          CHECKOUT_REF="${REF}"
+          RELEASE_OK=false
+          TAG_NAME=""
+
+          # Push of tag v* → build that tag and release
+          if [[ "${REF}" == refs/tags/v* ]]; then
+            RELEASE_OK=true
+            TAG_NAME="${REF#refs/tags/}"
+          fi
+
+          # Manual run: optional release_tag builds refs/tags/vX.Y.Z and enables release
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${INPUT_TAG:-}" ]; then
+            T="${INPUT_TAG#refs/tags/}"
+            CHECKOUT_REF="refs/tags/${T}"
+            RELEASE_OK=true
+            TAG_NAME="${T}"
+          fi
+
+          echo "checkout_ref=${CHECKOUT_REF}" >> "${GITHUB_OUTPUT}"
+          echo "release_ok=${RELEASE_OK}" >> "${GITHUB_OUTPUT}"
+          echo "tag_name=${TAG_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved: checkout_ref=${CHECKOUT_REF} release_ok=${RELEASE_OK} tag_name=${TAG_NAME}"
+
   build:
+    needs: resolve
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -33,12 +75,12 @@ jobs:
           - os: windows-latest
             platform: win
             arch: [x64]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ needs.resolve.outputs.checkout_ref }}
           fetch-depth: 1
 
       - name: Setup Node.js
@@ -69,8 +111,6 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
 
-      # Note: latest.yml / latest-mac.yml are NOT produced with --publish never (electron-builder).
-      # Only upload real installers + blockmaps so globs never match zero files silently.
       - name: Upload Windows artifacts
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
@@ -95,16 +135,15 @@ jobs:
           retention-days: 30
 
   release:
-    needs: build
+    needs: [resolve, build]
     runs-on: ubuntu-latest
-    # Only when this run targets a semver tag (push Tag v* or workflow_dispatch with ref = tag).
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: needs.resolve.outputs.release_ok == 'true'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ needs.resolve.outputs.checkout_ref }}
           fetch-depth: 1
 
       - name: Download Windows artifacts
@@ -142,7 +181,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          # Blockmaps may be absent in edge cases; installers are enforced above.
+          tag_name: ${{ needs.resolve.outputs.tag_name }}
           fail_on_unmatched_files: false
           files: |
             ./release/windows/*.exe
