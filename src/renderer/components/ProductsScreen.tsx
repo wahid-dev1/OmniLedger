@@ -59,7 +59,9 @@ export function ProductsScreen() {
     setShowScrollHint(false);
     try {
       sessionStorage.setItem("products-scroll-hint-dismissed", "1");
-    } catch {}
+    } catch {
+      // sessionStorage may be unavailable (e.g. private mode); ignore.
+    }
     const scrolledToEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
     setShowRightGradient(!scrolledToEnd);
   }, []);

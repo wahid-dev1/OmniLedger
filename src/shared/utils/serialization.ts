@@ -57,7 +57,7 @@ export function serializeForIPC(data: any): any {
   if (typeof data === 'object') {
     const serialized: any = {};
     for (const key in data) {
-      if (data.hasOwnProperty(key) && key !== 'toNumber' && key !== 'toFixed') {
+      if (Object.prototype.hasOwnProperty.call(data, key) && key !== 'toNumber' && key !== 'toFixed') {
         try {
           serialized[key] = serializeForIPC(data[key]);
         } catch (error) {

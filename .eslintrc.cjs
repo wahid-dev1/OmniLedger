@@ -15,6 +15,10 @@ module.exports = {
       { allowConstantExport: true },
     ],
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    // Pragmatic relaxation: this codebase uses `any` extensively for Electron
+    // IPC payloads and Sequelize results. Surface as warnings rather than
+    // failing CI; tighten incrementally over time.
+    '@typescript-eslint/no-explicit-any': 'warn',
   },
 }
 

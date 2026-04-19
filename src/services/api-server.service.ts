@@ -12,6 +12,7 @@ import path from 'node:path';
 import { Server } from 'http';
 import { app as electronApp } from 'electron';
 import { Tunnel, use as setCloudflaredBinary } from 'cloudflared';
+import { Op } from 'sequelize';
 import type { MobileServerConfig, ApiResponse } from '../shared/types';
 
 let apiServer: Express | null = null;
@@ -732,15 +733,12 @@ export class ApiServerService {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        // Use Sequelize.Op for operators
-        const Sequelize = require('sequelize');
-        
         const todaySales = await Sale.findAll({
           where: {
             companyId: companyId as string,
             saleDate: {
-              [Sequelize.Op.gte]: today,
-              [Sequelize.Op.lt]: tomorrow,
+              [Op.gte]: today,
+              [Op.lt]: tomorrow,
             },
           },
         });
