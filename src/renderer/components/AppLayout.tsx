@@ -33,8 +33,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 border-r bg-card">
-        <div className="p-6">
+      <div className="fixed left-0 top-0 h-full w-64 border-r bg-card flex flex-col">
+        <div className="p-6 flex-1 overflow-y-auto">
           <Link to="/" className="flex items-center mb-8 hover:opacity-80 transition-opacity group">
             <img src={logoIcon} alt="OmniLedger" className="h-8 w-auto" />
           </Link>
@@ -85,6 +85,13 @@ export function AppLayout({ children }: AppLayoutProps) {
               })}
             </nav>
           </div>
+        </div>
+
+        {/* App version footer */}
+        <div className="px-6 py-3 border-t bg-card">
+          <p className="text-xs text-muted-foreground text-center">
+            OmniLedger <span className="font-medium">v{__APP_VERSION__}</span>
+          </p>
         </div>
       </div>
 
