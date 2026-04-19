@@ -1,16 +1,24 @@
+# Unified release pipeline:
+# - push to main → ensure git tag v{package.json}, build Win+Mac, publish GitHub Release (same run).
+# - push tag v* → build + publish (e.g. manual tag).
+# - workflow_dispatch → optional release_tag, or run from main / tag only.
+#
+# Tag creation + installers happen in one workflow so GITHUB_TOKEN can push tags and still run build jobs.
+
 name: Build and Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
     inputs:
       release_tag:
         description: >
-          Tag to build and attach installers to (e.g. v1.0.15). Use this when you click
-          "Run workflow" on branch main — otherwise the release step is skipped.
-          Or select the tag in the "Use workflow from" dropdown instead of main.
+          Optional. Exact tag to build (e.g. v1.0.16). Use when re-running for an existing tag.
+          Leave empty when running from main or from a tag — version comes from package.json / ref.
         required: false
         default: ''
         type: string
@@ -19,91 +27,152 @@ permissions:
   contents: write
 
 concurrency:
-  group: build-release-${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.release_tag }}
+  group: release-${{ github.workflow }}-${{ github.repository }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
-  # Compute checkout ref and whether to run the release job (needs a version tag).
-  resolve:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
-      checkout_ref: ${{ steps.ctx.outputs.checkout_ref }}
-      release_ok: ${{ steps.ctx.outputs.release_ok }}
-      tag_name: ${{ steps.ctx.outputs.tag_name }}
+      checkout_ref: ${{ steps.plan.outputs.checkout_ref }}
+      tag_name: ${{ steps.plan.outputs.tag_name }}
+      release_ok: ${{ steps.plan.outputs.release_ok }}
     steps:
-      - name: Resolve ref and release gate
-        id: ctx
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Plan tag, ref, and release
+        id: plan
         env:
           EVENT_NAME: ${{ github.event_name }}
-          INPUT_TAG: ${{ github.event.inputs.release_tag }}
           REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          INPUT_TAG: ${{ github.event.inputs.release_tag }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_PUSH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN }}
         run: |
           set -euo pipefail
-          CHECKOUT_REF="${REF}"
-          RELEASE_OK=false
-          TAG_NAME=""
 
-          # Push of tag v* → build that tag and release
-          if [[ "${REF}" == refs/tags/v* ]]; then
-            RELEASE_OK=true
-            TAG_NAME="${REF#refs/tags/}"
+          VERSION=$(node -p "require('./package.json').version")
+          PKG_TAG="v${VERSION}"
+
+          checkout_ref=""
+          tag_name=""
+          release_ok=false
+
+          git fetch origin --tags --force
+
+          # Manual runs must target main, a v* tag, or provide release_tag (avoid accidental CI spend).
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            if [[ "${REF}" != refs/heads/main ]] && [[ "${REF}" != refs/tags/v* ]] && [ -z "${INPUT_TAG:-}" ]; then
+              echo "::error::Run from branch **main**, a **v*** tag, or set workflow input **release_tag**."
+              exit 1
+            fi
           fi
 
-          # Manual run: optional release_tag builds refs/tags/vX.Y.Z and enables release
+          ensure_tag_points_here() {
+            local TAG="$1"
+            if git rev-parse "$TAG" >/dev/null 2>&1; then
+              local ex
+              ex=$(git rev-parse "${TAG}^0")
+              if [ "$ex" != "$SHA" ]; then
+                echo "::error::Tag ${TAG} exists on another commit. Bump version in package.json."
+                exit 1
+              fi
+              echo "::notice::Tag ${TAG} already at ${SHA}."
+            else
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git config user.name "github-actions[bot]"
+              git tag -a "$TAG" -m "Release ${TAG}"
+              PAT="${RELEASE_PUSH_TOKEN:-${GITHUB_TOKEN}}"
+              git remote set-url origin "https://x-access-token:${PAT}@github.com/${GITHUB_REPOSITORY}.git"
+              git push origin "refs/tags/${TAG}"
+            fi
+          }
+
+          # Manual: explicit tag only
           if [ "${EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${INPUT_TAG:-}" ]; then
             T="${INPUT_TAG#refs/tags/}"
-            CHECKOUT_REF="refs/tags/${T}"
-            RELEASE_OK=true
-            TAG_NAME="${T}"
+            checkout_ref="refs/tags/${T}"
+            tag_name="${T}"
+            echo "checkout_ref=${checkout_ref}" >> "${GITHUB_OUTPUT}"
+            echo "tag_name=${tag_name}" >> "${GITHUB_OUTPUT}"
+            echo "release_ok=true" >> "${GITHUB_OUTPUT}"
+            exit 0
           fi
 
-          echo "checkout_ref=${CHECKOUT_REF}" >> "${GITHUB_OUTPUT}"
-          echo "release_ok=${RELEASE_OK}" >> "${GITHUB_OUTPUT}"
-          echo "tag_name=${TAG_NAME}" >> "${GITHUB_OUTPUT}"
-          echo "Resolved: checkout_ref=${CHECKOUT_REF} release_ok=${RELEASE_OK} tag_name=${TAG_NAME}"
+          # Push of semver tag → release that revision
+          if [[ "${REF}" == refs/tags/v* ]]; then
+            checkout_ref="${REF}"
+            tag_name="${REF#refs/tags/}"
+            echo "checkout_ref=${checkout_ref}" >> "${GITHUB_OUTPUT}"
+            echo "tag_name=${tag_name}" >> "${GITHUB_OUTPUT}"
+            echo "release_ok=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          # main: tag package.json version at HEAD (creates tag if missing), then build this SHA
+          if [[ "${REF}" == refs/heads/main ]]; then
+            tag_name="${PKG_TAG}"
+            ensure_tag_points_here "${PKG_TAG}"
+            checkout_ref="${SHA}"
+            echo "checkout_ref=${checkout_ref}" >> "${GITHUB_OUTPUT}"
+            echo "tag_name=${tag_name}" >> "${GITHUB_OUTPUT}"
+            echo "release_ok=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "::warning::Skipping release (run from main, a v* tag, or set release_tag)."
+          checkout_ref="${SHA}"
+          echo "checkout_ref=${checkout_ref}" >> "${GITHUB_OUTPUT}"
+          echo "tag_name=" >> "${GITHUB_OUTPUT}"
+          echo "release_ok=false" >> "${GITHUB_OUTPUT}"
 
   build:
-    needs: resolve
+    needs: prepare
+    if: needs.prepare.outputs.release_ok == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, windows-latest]
         include:
           - os: macos-latest
             platform: mac
-            arch: [x64, arm64]
           - os: windows-latest
             platform: win
-            arch: [x64]
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.resolve.outputs.checkout_ref }}
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
           fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: '20'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build application
+      - name: Build application (Vite + electron TS)
         run: npm run build
 
-      - name: Build Windows (x64)
+      - name: Package Windows
         if: matrix.os == 'windows-latest'
-        run: npm run build && npx electron-builder --win --publish never
+        run: npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Mac (x64 + arm64)
+      - name: Package macOS
         if: matrix.os == 'macos-latest'
-        run: npm run build && npx electron-builder --mac dmg zip --x64 --arm64 --publish never
+        run: npx electron-builder --mac dmg zip --x64 --arm64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
@@ -120,9 +189,9 @@ jobs:
             release/*.exe
             release/*.blockmap
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
 
-      - name: Upload Mac artifacts
+      - name: Upload macOS artifacts
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -132,56 +201,41 @@ jobs:
             release/*.zip
             release/*.blockmap
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
 
   release:
-    needs: [resolve, build]
+    needs: [prepare, build]
     runs-on: ubuntu-latest
-    if: needs.resolve.outputs.release_ok == 'true'
+    if: needs.prepare.outputs.release_ok == 'true'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.resolve.outputs.checkout_ref }}
-          fetch-depth: 1
-
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
           name: windows-build
           path: ./release/windows
 
-      - name: Download Mac artifacts
+      - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
           name: mac-build
           path: ./release/mac
 
-      - name: Verify installers before upload
+      - name: Verify installers
         run: |
           set -euo pipefail
           ls -la ./release/windows ./release/mac
           WIN=$(find ./release/windows -maxdepth 2 -name '*.exe' | wc -l | tr -d ' ')
           DMG=$(find ./release/mac -maxdepth 2 -name '*.dmg' | wc -l | tr -d ' ')
           ZIP=$(find ./release/mac -maxdepth 2 -name '*.zip' | wc -l | tr -d ' ')
-          if [ "${WIN}" -lt 1 ]; then
-            echo "::error::No Windows .exe found under ./release/windows — build step did not produce installers."
-            exit 1
-          fi
-          if [ "${DMG}" -lt 1 ]; then
-            echo "::error::No macOS .dmg found under ./release/mac — build step did not produce installers."
-            exit 1
-          fi
-          if [ "${ZIP}" -lt 1 ]; then
-            echo "::error::No macOS .zip found under ./release/mac — zip target did not produce archives."
-            exit 1
-          fi
+          [ "${WIN}" -ge 1 ] || { echo "::error::No Windows .exe"; exit 1; }
+          [ "${DMG}" -ge 1 ] || { echo "::error::No macOS .dmg"; exit 1; }
+          [ "${ZIP}" -ge 1 ] || { echo "::error::No macOS .zip"; exit 1; }
 
-      - name: Create Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.resolve.outputs.tag_name }}
+          tag_name: ${{ needs.prepare.outputs.tag_name }}
           fail_on_unmatched_files: false
           files: |
             ./release/windows/*.exe
