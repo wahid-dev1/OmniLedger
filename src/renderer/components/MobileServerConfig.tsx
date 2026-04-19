@@ -120,6 +120,7 @@ export function MobileServerConfig() {
 
     const baseUrl = status.tunnelUrl as string;
     let cancelled = false;
+    // eslint-disable-next-line prefer-const -- captured by `tick` closure before assignment below
     let intervalId: ReturnType<typeof setInterval> | undefined;
     const deadline = Date.now() + TUNNEL_VERIFY_MAX_MS;
 

@@ -590,7 +590,7 @@ function serializeForIPC(data: any, visited: Set<object> = new Set()): any {
     const result: any = {};
     for (const key in data) {
       // Only process own properties (not prototype chain)
-      if (!data.hasOwnProperty(key)) {
+      if (!Object.prototype.hasOwnProperty.call(data, key)) {
         continue;
       }
 
