@@ -1,5 +1,5 @@
 // Electron main process - Database operations using Sequelize
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, Menu, ipcMain } from "electron";
 import path from "path";
 import { autoUpdater } from "electron-updater";
 import fs from "fs";
@@ -45,6 +45,12 @@ if (isDev) {
 }
 
 function createWindow() {
+  // Remove the default application menu (File/Edit/View/etc.) on Windows & Linux.
+  // On macOS the application menu is part of the OS menu bar and cannot be hidden.
+  if (process.platform !== "darwin") {
+    Menu.setApplicationMenu(null);
+  }
+
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -56,8 +62,12 @@ function createWindow() {
       sandbox: false,
     },
     titleBarStyle: "default",
+    autoHideMenuBar: true,
     show: false,
   });
+
+  // Ensure the menu bar stays hidden (and cannot be toggled via Alt key)
+  mainWindow.setMenuBarVisibility(false);
 
   // Load the app
   if (isDev) {

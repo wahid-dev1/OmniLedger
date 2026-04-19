@@ -41,6 +41,22 @@ function normalizeReleaseNotesText(
   return joined.length ? joined : null;
 }
 
+/**
+ * Some sources (e.g. electron-updater pulling from GitHub releases) deliver
+ * release notes with their HTML already entity-encoded (`&lt;h2&gt;`). Decode
+ * those so we can detect and render the underlying markup.
+ */
+function decodeHtmlEntities(s: string): string {
+  if (!/&(?:#\d+|#x[0-9a-f]+|[a-z]+);/i.test(s)) return s;
+  try {
+    const el = document.createElement("textarea");
+    el.innerHTML = s;
+    return el.value;
+  } catch {
+    return s;
+  }
+}
+
 function looksLikeHtml(s: string): boolean {
   return /<[a-z][\s\S]*>/i.test(s);
 }
@@ -86,40 +102,44 @@ export function UpdateAvailableDialog({
     if (!releaseNotesRaw) {
       return { isHtml: false, html: "", text: "" as string | null };
     }
-    if (looksLikeHtml(releaseNotesRaw)) {
+    const decoded = decodeHtmlEntities(releaseNotesRaw);
+    if (looksLikeHtml(decoded)) {
       return {
         isHtml: true,
-        html: sanitizeReleaseNotesHtml(releaseNotesRaw),
+        html: sanitizeReleaseNotesHtml(decoded),
         text: null,
       };
     }
-    return { isHtml: false, html: "", text: releaseNotesRaw };
+    return { isHtml: false, html: "", text: decoded };
   }, [releaseNotesRaw]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !isDownloading && onClose()}>
       <DialogContent
         className={cn(
-          "gap-0 overflow-hidden p-0 sm:max-w-[min(100vw-2rem,520px)]",
+          "gap-0 overflow-hidden p-0",
+          "w-[calc(100vw-1.5rem)] max-w-[640px]",
+          "max-h-[calc(100vh-2rem)]",
+          "grid-rows-[auto_minmax(0,1fr)_auto]",
           "border-border bg-background text-foreground shadow-xl"
         )}
       >
-        <div className="border-b border-border bg-muted/40 px-6 py-5">
+        <div className="border-b border-border bg-muted/40 px-4 py-4 sm:px-6 sm:py-5">
           <DialogHeader className="space-y-2 text-left">
-            <DialogTitle className="flex items-center gap-2.5 text-xl font-semibold tracking-tight">
+            <DialogTitle className="flex items-center gap-2.5 text-lg font-semibold tracking-tight sm:text-xl">
               {isDownloaded ? (
                 <>
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-500/15">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-500/15 sm:h-10 sm:w-10">
                     <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
                   </span>
-                  Update ready to install
+                  <span className="min-w-0 break-words">Update ready to install</span>
                 </>
               ) : (
                 <>
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 sm:h-10 sm:w-10">
                     <RefreshCw className="h-5 w-5 text-primary" />
                   </span>
-                  New version available
+                  <span className="min-w-0 break-words">New version available</span>
                 </>
               )}
             </DialogTitle>
@@ -131,7 +151,7 @@ export function UpdateAvailableDialog({
           </DialogHeader>
         </div>
 
-        <div className="space-y-4 px-6 py-5">
+        <div className="min-h-0 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           <div className="overflow-hidden rounded-lg border border-border">
             <Table>
               <TableBody>
@@ -165,17 +185,18 @@ export function UpdateAvailableDialog({
           </div>
 
           {releaseNotesRaw ? (
-            <div className="rounded-lg border border-border bg-muted/30">
+            <div className="overflow-hidden rounded-lg border border-border bg-muted/30">
               <div className="border-b border-border px-4 py-2.5">
                 <p className="text-sm font-medium text-foreground">
                   What&apos;s new
                 </p>
               </div>
-              <div className="max-h-[220px] overflow-y-auto px-4 py-3">
+              <div className="max-h-[40vh] min-h-[120px] overflow-y-auto px-4 py-3 sm:max-h-[260px]">
                 {isHtml ? (
                   <div
                     className={cn(
-                      "update-release-notes text-sm leading-relaxed text-foreground",
+                      "update-release-notes break-words text-sm leading-relaxed text-foreground",
+                      "[&_*]:max-w-full [&_a]:break-all",
                       "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2",
                       "[&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-semibold",
                       "[&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-sm [&_h2]:font-semibold first:[&_h2]:mt-0",
@@ -185,12 +206,14 @@ export function UpdateAvailableDialog({
                       "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5",
                       "[&_li]:my-0.5",
                       "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs",
+                      "[&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:text-xs",
+                      "[&_img]:h-auto [&_img]:max-w-full [&_img]:rounded",
                       "[&_blockquote]:border-l-2 [&_blockquote]:border-primary/40 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground"
                     )}
                     dangerouslySetInnerHTML={{ __html: html }}
                   />
                 ) : (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
                     {text}
                   </p>
                 )}
@@ -217,7 +240,7 @@ export function UpdateAvailableDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="gap-2 border-t border-border bg-muted/20 px-6 py-4 sm:gap-2">
+        <DialogFooter className="flex-col-reverse gap-2 border-t border-border bg-muted/20 px-4 py-3 sm:flex-row sm:gap-2 sm:px-6 sm:py-4">
           {!isDownloaded ? (
             <>
               <Button
@@ -225,7 +248,7 @@ export function UpdateAvailableDialog({
                 variant="outline"
                 onClick={onClose}
                 disabled={isDownloading}
-                className="sm:min-w-[100px]"
+                className="w-full sm:w-auto sm:min-w-[100px]"
               >
                 Later
               </Button>
@@ -233,7 +256,7 @@ export function UpdateAvailableDialog({
                 type="button"
                 onClick={onDownload}
                 disabled={isDownloading}
-                className="min-w-[160px] gap-2"
+                className="w-full gap-2 sm:w-auto sm:min-w-[160px]"
               >
                 {isDownloading ? (
                   <>
@@ -254,14 +277,14 @@ export function UpdateAvailableDialog({
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                className="sm:min-w-[100px]"
+                className="w-full sm:w-auto sm:min-w-[100px]"
               >
                 Later
               </Button>
               <Button
                 type="button"
                 onClick={onInstallAndRestart}
-                className="min-w-[180px] gap-2"
+                className="w-full gap-2 sm:w-auto sm:min-w-[180px]"
               >
                 <RefreshCw className="h-4 w-4 shrink-0" />
                 Restart & install
