@@ -6,6 +6,12 @@ declare const window: Window & {
     onUpdateAvailable: (cb: (info: UpdateInfo) => void) => () => void;
     onUpdateDownloaded: (cb: () => void) => () => void;
     onUpdateError: (cb: (error: string) => void) => () => void;
+    getPendingUpdate?: () => Promise<{
+      success: boolean;
+      updateInfo?: UpdateInfo | null;
+      downloaded?: boolean;
+      error?: string | null;
+    }>;
     downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
     quitAndInstall: () => Promise<{ success: boolean; error?: string }>;
   };
@@ -21,6 +27,8 @@ export function UpdateNotifier() {
   useEffect(() => {
     const api = window.electronAPI;
     if (!api?.onUpdateAvailable) return;
+
+    let cancelled = false;
 
     const unsubAvailable = api.onUpdateAvailable((info) => {
       setUpdateInfo(info);
@@ -42,7 +50,30 @@ export function UpdateNotifier() {
       setDownloadError(error);
     });
 
+    // Pull any update state captured by the main process before this
+    // component mounted. Without this, an `update-available` event that
+    // fires during app startup (which is the common case, since the main
+    // process checks on launch) would be missed entirely.
+    void (async () => {
+      try {
+        const result = await api.getPendingUpdate?.();
+        if (cancelled || !result?.success) return;
+        if (result.updateInfo) {
+          setUpdateInfo(result.updateInfo);
+          setIsDownloaded(Boolean(result.downloaded));
+          setIsDownloading(false);
+          setDownloadError(result.error ?? null);
+          setShowDialog(true);
+        } else if (result.error) {
+          setDownloadError(result.error);
+        }
+      } catch (err) {
+        console.error("Failed to fetch pending update:", err);
+      }
+    })();
+
     return () => {
+      cancelled = true;
       unsubAvailable();
       unsubDownloaded();
       unsubError();

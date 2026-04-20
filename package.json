@@ -1,6 +1,6 @@
 {
   "name": "omniledger",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "description": "Desktop Inventory & Accounting System",
   "main": "dist-electron/main/main.js",
   "author": "wahid-dev1",
