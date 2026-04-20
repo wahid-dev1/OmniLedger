@@ -7,11 +7,8 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import { Server } from 'http';
-import { app as electronApp } from 'electron';
-import { Tunnel, use as setCloudflaredBinary } from 'cloudflared';
+import * as ngrok from '@ngrok/ngrok';
 import { Op } from 'sequelize';
 import type { MobileServerConfig, ApiResponse } from '../shared/types';
 
@@ -20,68 +17,14 @@ let httpServer: Server | null = null;
 let serverConfig: MobileServerConfig | null = null;
 let serverStatus: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' = 'stopped';
 let serverError: string | null = null;
-let cloudflareTunnel: Tunnel | null = null;
+let ngrokListener: ngrok.Listener | null = null;
 let tunnelPublicUrl: string | null = null;
 let tunnelPublicError: string | null = null;
-/** Set true before SIGINT so unexpected `exit` handlers do not auto-restart. */
+/** Set true before intentional shutdown so reconnect handlers do not auto-restart. */
 let tunnelShutdownIntentional = false;
 let tunnelRestartTimer: ReturnType<typeof setTimeout> | null = null;
 let tunnelRestartAttempts = 0;
 const MAX_TUNNEL_RESTART_ATTEMPTS = 12;
-
-function cloudflaredExecutableName(): string {
-  return process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared';
-}
-
-let cloudflaredBinaryConfigured = false;
-
-/**
- * The cloudflared npm package spawns a binary next to its package.json. In a
- * packaged Electron app that path lives inside app.asar, where executables
- * cannot be spawned (often surfaces as spawn ENOTDIR). Prefer the unpacked
- * copy (see package.json build.asarUnpack) or CLOUDFLARED_BIN.
- */
-function configureCloudflaredBinaryPath(): void {
-  if (cloudflaredBinaryConfigured) {
-    return;
-  }
-  cloudflaredBinaryConfigured = true;
-
-  const name = cloudflaredExecutableName();
-  const candidates: string[] = [];
-
-  if (process.env.CLOUDFLARED_BIN) {
-    candidates.push(process.env.CLOUDFLARED_BIN);
-  }
-
-  let packaged = false;
-  try {
-    packaged = electronApp.isPackaged;
-  } catch {
-    packaged = false;
-  }
-
-  if (packaged) {
-    candidates.push(
-      path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'cloudflared', 'bin', name),
-    );
-  } else {
-    candidates.push(path.join(process.cwd(), 'node_modules', 'cloudflared', 'bin', name));
-    try {
-      const pkgDir = path.dirname(require.resolve('cloudflared/package.json'));
-      candidates.push(path.join(pkgDir, 'bin', name));
-    } catch {
-      /* optional dependency layout */
-    }
-  }
-
-  for (const p of candidates) {
-    if (p && existsSync(p)) {
-      setCloudflaredBinary(p);
-      return;
-    }
-  }
-}
 
 function clearTunnelRestartTimer(): void {
   if (tunnelRestartTimer) {
@@ -91,84 +34,111 @@ function clearTunnelRestartTimer(): void {
 }
 
 /**
- * Quick (trycloudflare) tunnel to local HTTP. If the child exits while the API
- * server is still running, we restart with backoff — Cloudflare 1033 usually means
- * no active connector reached the edge.
+ * Start an ngrok tunnel forwarding to the local API port. Requires an
+ * `ngrokAuthtoken` in the server config (or the NGROK_AUTHTOKEN env var).
+ * If authentication or network fails we set `tunnelPublicError`, keep the
+ * LAN-only API running, and (for transient failures) schedule a restart.
  */
-function attachQuickTunnel(port: number): void {
+async function attachPublicTunnel(port: number): Promise<void> {
   clearTunnelRestartTimer();
   tunnelShutdownIntentional = false;
 
-  configureCloudflaredBinaryPath();
-
-  try {
-    cloudflareTunnel = Tunnel.quick(`http://127.0.0.1:${port}`);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    tunnelPublicError = `Public tunnel could not start (${msg}). The API is still available on your local network; reinstall or set CLOUDFLARED_BIN if you need trycloudflare.`;
-    console.error('[cloudflared] Failed to spawn quick tunnel:', err);
+  if (serverConfig?.enablePublicTunnel === false) {
+    tunnelPublicUrl = null;
+    tunnelPublicError = null;
     return;
   }
 
-  cloudflareTunnel.on('stderr', (chunk: string) => {
-    const line = chunk.trim();
-    if (!line) return;
-    if (/ERR |fatal|Failed|unable to connect|connection refused/i.test(line)) {
-      console.error('[cloudflared]', line);
-    }
-  });
+  const authtoken = serverConfig?.ngrokAuthtoken?.trim() || process.env.NGROK_AUTHTOKEN;
+  if (!authtoken) {
+    tunnelPublicError =
+      'Public tunnel disabled: add an ngrok authtoken in Mobile Server settings (free at https://dashboard.ngrok.com/get-started/your-authtoken) to enable a public URL.';
+    tunnelPublicUrl = null;
+    return;
+  }
 
-  cloudflareTunnel.once('url', (url: string) => {
-    tunnelPublicUrl = url;
+  const domain = serverConfig?.ngrokDomain?.trim() || undefined;
+  const region = serverConfig?.ngrokRegion?.trim() || undefined;
+
+  try {
+    const listener = await ngrok.forward({
+      addr: port,
+      authtoken,
+      domain,
+      region,
+      proto: 'http',
+      // Stamp the skip-warning header onto every upstream request so the local
+      // Express server always sees it, and so mobile clients that forget to
+      // send it still get through ngrok without the abuse interstitial
+      // (applies to non-browser clients; browser visitors on free tier still
+      // see the one-time warning — upgrade ngrok plan to remove it entirely).
+      request_header_add: ['ngrok-skip-browser-warning:omniledger'],
+    } as ngrok.Config);
+
+    ngrokListener = listener;
+    tunnelPublicUrl = listener.url() ?? null;
     tunnelPublicError = null;
     tunnelRestartAttempts = 0;
-    console.log('Your public mobile endpoint:', url);
-  });
-
-  cloudflareTunnel.once('error', (err: Error) => {
-    tunnelPublicError = err.message;
-    console.error('Cloudflare tunnel error:', err);
-  });
-
-  cloudflareTunnel.on('exit', (code, signal) => {
-    const exited = cloudflareTunnel;
-    if (exited) {
-      exited.removeAllListeners();
-    }
-    cloudflareTunnel = null;
+    console.log('[ngrok] Your public mobile endpoint:', tunnelPublicUrl);
+  } catch (err) {
+    ngrokListener = null;
     tunnelPublicUrl = null;
+    const msg = err instanceof Error ? err.message : String(err);
+    tunnelPublicError =
+      `Public tunnel could not start (${msg}). The API is still available on your local network. ` +
+      `Check your ngrok authtoken and internet connection.`;
+    console.error('[ngrok] Failed to start tunnel:', err);
+    scheduleTunnelRestart(port);
+  }
+}
 
-    if (tunnelShutdownIntentional) {
-      tunnelShutdownIntentional = false;
-      tunnelRestartAttempts = 0;
-      clearTunnelRestartTimer();
-      return;
+function scheduleTunnelRestart(port: number): void {
+  if (tunnelShutdownIntentional) return;
+  if (serverStatus !== 'running' || !httpServer) return;
+
+  tunnelRestartAttempts += 1;
+  if (tunnelRestartAttempts > MAX_TUNNEL_RESTART_ATTEMPTS) {
+    tunnelPublicError =
+      'Public tunnel stopped after repeated failures. Check your ngrok authtoken and outbound network access; see the main process logs for [ngrok].';
+    console.error('[ngrok] Giving up on public tunnel after', tunnelRestartAttempts, 'attempts');
+    return;
+  }
+
+  const delayMs = Math.min(30_000, 1500 * 2 ** Math.min(tunnelRestartAttempts - 1, 5));
+  const existingDetail = tunnelPublicError ? ` ${tunnelPublicError}` : '';
+  tunnelPublicError = `Tunnel disconnected. Retrying in ${Math.ceil(delayMs / 1000)}s…${existingDetail}`;
+  console.warn('[ngrok] scheduling restart in', delayMs, 'ms (attempt', tunnelRestartAttempts, ')');
+
+  tunnelRestartTimer = setTimeout(() => {
+    tunnelRestartTimer = null;
+    if (serverStatus !== 'running' || !httpServer || ngrokListener) return;
+    void attachPublicTunnel(port);
+  }, delayMs);
+}
+
+async function stopPublicTunnel(): Promise<void> {
+  tunnelShutdownIntentional = true;
+  clearTunnelRestartTimer();
+  tunnelRestartAttempts = 0;
+
+  if (ngrokListener) {
+    try {
+      await ngrokListener.close();
+    } catch (err) {
+      console.warn('[ngrok] listener close error:', err);
     }
+    ngrokListener = null;
+  }
 
-    if (serverStatus !== 'running' || !httpServer) {
-      return;
-    }
+  // Fully disconnect the ngrok session so the next start is clean.
+  try {
+    await ngrok.disconnect();
+  } catch {
+    /* ignore — disconnect throws if there is no active session */
+  }
 
-    tunnelRestartAttempts += 1;
-    if (tunnelRestartAttempts > MAX_TUNNEL_RESTART_ATTEMPTS) {
-      tunnelPublicError =
-        'Cloudflare tunnel stopped after repeated failures. Check outbound access to Cloudflare, firewall, and the main process logs for [cloudflared].';
-      console.error('[cloudflared] Giving up on quick tunnel after', tunnelRestartAttempts, 'attempts');
-      return;
-    }
-
-    const delayMs = Math.min(30_000, 1500 * 2 ** Math.min(tunnelRestartAttempts - 1, 5));
-    tunnelPublicError = `Tunnel disconnected (code ${code ?? '?'}${signal ? ` ${signal}` : ''}). Retrying in ${Math.ceil(delayMs / 1000)}s…`;
-    console.warn('[cloudflared] Tunnel process exited; scheduling restart in', delayMs, 'ms');
-
-    tunnelRestartTimer = setTimeout(() => {
-      tunnelRestartTimer = null;
-      if (serverStatus !== 'running' || !httpServer || cloudflareTunnel) {
-        return;
-      }
-      attachQuickTunnel(port);
-    }, delayMs);
-  });
+  tunnelPublicUrl = null;
+  tunnelPublicError = null;
 }
 
 export class ApiServerService {
@@ -212,7 +182,15 @@ export class ApiServerService {
             : '*', // Allow all origins if not specified
           credentials: true,
           methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-          allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+          allowedHeaders: [
+            'Content-Type',
+            'Authorization',
+            'X-API-Key',
+            // Custom header sent by our renderer / mobile clients to bypass the
+            // ngrok free-tier browser abuse interstitial. Required in the CORS
+            // allow-list or the preflight OPTIONS request fails in the browser.
+            'ngrok-skip-browser-warning',
+          ],
         };
         apiServer.use(cors(corsOptions));
       }
@@ -298,7 +276,9 @@ export class ApiServerService {
       tunnelPublicUrl = null;
       tunnelPublicError = null;
       tunnelRestartAttempts = 0;
-      attachQuickTunnel(port);
+      // Fire-and-forget: starting ngrok takes a second or two and we don't
+      // want to block the start() IPC response on it.
+      void attachPublicTunnel(port);
 
       return {
         success: true,
@@ -807,21 +787,7 @@ export class ApiServerService {
    */
   static async stop(): Promise<{ success: boolean; error?: string }> {
     try {
-      tunnelShutdownIntentional = true;
-      clearTunnelRestartTimer();
-      tunnelRestartAttempts = 0;
-
-      if (cloudflareTunnel) {
-        try {
-          cloudflareTunnel.removeAllListeners();
-          cloudflareTunnel.stop();
-        } catch {
-          /* ignore */
-        }
-        cloudflareTunnel = null;
-      }
-      tunnelPublicUrl = null;
-      tunnelPublicError = null;
+      await stopPublicTunnel();
 
       if (httpServer) {
         serverStatus = 'stopping';

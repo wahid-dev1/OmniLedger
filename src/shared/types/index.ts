@@ -85,6 +85,11 @@ export interface MobileServerConfig {
   // Network discovery
   enableDiscovery: boolean; // Enable network discovery/broadcasting
   serverName?: string; // Server name for discovery (defaults to Company name)
+  // Public tunnel (ngrok)
+  enablePublicTunnel?: boolean; // If true (default), start an ngrok tunnel when the server starts
+  ngrokAuthtoken?: string; // Required to start a public tunnel. Get one at https://dashboard.ngrok.com/get-started/your-authtoken
+  ngrokDomain?: string; // Optional reserved/static domain for paid ngrok plans (e.g., "my-app.ngrok.app")
+  ngrokRegion?: string; // Optional ngrok region (us, eu, au, ap, sa, jp, in)
 }
 
 // API Response types

@@ -72,6 +72,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\""
   },
   "dependencies": {
+    "@ngrok/ngrok": "^1.7.0",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-avatar": "^1.0.4",
@@ -90,7 +91,6 @@
     "better-sqlite3": "^11.2.0",
     "body-parser": "^1.20.2",
     "class-variance-authority": "^0.7.0",
-    "cloudflared": "^0.7.1",
     "clsx": "^2.1.0",
     "cors": "^2.8.5",
     "dompurify": "^3.3.3",
@@ -159,7 +159,7 @@
       "output": "release"
     },
     "asarUnpack": [
-      "**/node_modules/cloudflared/bin/**"
+      "**/node_modules/@ngrok/**"
     ],
     "files": [
       "dist/**/*",
