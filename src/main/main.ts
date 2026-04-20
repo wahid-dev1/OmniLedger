@@ -38,6 +38,18 @@ const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 // Store main window reference for auto-updater to send events
 let mainWindow: BrowserWindow | null = null;
 
+// Cache the latest auto-updater state so the renderer can retrieve it on mount.
+// This avoids a race where `update-available` fires before the React app has
+// registered its IPC listeners (IPC messages are NOT queued by Electron).
+type PendingUpdateInfo = {
+  version: string;
+  releaseDate?: string;
+  releaseNotes?: string;
+};
+let pendingUpdateInfo: PendingUpdateInfo | null = null;
+let pendingUpdateDownloaded = false;
+let pendingUpdateError: string | null = null;
+
 // Suppress SSL certificate errors in development (harmless warnings)
 if (isDev) {
   app.commandLine.appendSwitch('--ignore-certificate-errors');
@@ -201,25 +213,33 @@ function setupAutoUpdater() {
 
   autoUpdater.on("update-available", (info) => {
     console.log("Update available:", info.version);
-    mainWindow?.webContents.send("update-available", {
+    const payload: PendingUpdateInfo = {
       version: info.version,
       releaseDate: info.releaseDate,
       releaseNotes: serializeReleaseNotes(info.releaseNotes),
-    });
+    };
+    pendingUpdateInfo = payload;
+    pendingUpdateDownloaded = false;
+    pendingUpdateError = null;
+    mainWindow?.webContents.send("update-available", payload);
   });
 
   autoUpdater.on("update-downloaded", () => {
     console.log("Update downloaded, ready to install");
+    pendingUpdateDownloaded = true;
     mainWindow?.webContents.send("update-downloaded");
   });
 
   autoUpdater.on("update-not-available", () => {
     console.log("No update available");
+    pendingUpdateInfo = null;
+    pendingUpdateDownloaded = false;
   });
 
   autoUpdater.on("error", (err) => {
     console.error("Auto-updater error:", err);
-    mainWindow?.webContents.send("update-error", err?.message || String(err));
+    pendingUpdateError = err?.message || String(err);
+    mainWindow?.webContents.send("update-error", pendingUpdateError);
   });
 }
 
@@ -3973,6 +3993,18 @@ ipcMain.handle("restart-app", () => {
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }
+});
+
+// Auto-updater: return any update state captured before the renderer mounted.
+// This closes the race where `update-available` fires before the React app
+// has registered its IPC listeners; the renderer pulls this on mount.
+ipcMain.handle("get-pending-update", () => {
+  return {
+    success: true,
+    updateInfo: pendingUpdateInfo,
+    downloaded: pendingUpdateDownloaded,
+    error: pendingUpdateError,
+  };
 });
 
 // Auto-updater: check for updates

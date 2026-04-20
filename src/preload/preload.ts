@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   restartApp: () => ipcRenderer.invoke("restart-app"),
   // Auto-updater
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+  getPendingUpdate: () => ipcRenderer.invoke("get-pending-update"),
   downloadUpdate: () => ipcRenderer.invoke("download-update"),
   quitAndInstall: () => ipcRenderer.invoke("quit-and-install"),
   onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string }) => void) => {
@@ -166,6 +167,12 @@ export type ElectronAPI = {
   seedDatabase: (config: any, options?: { category?: string; all?: boolean }) => Promise<{ success: boolean; message?: string; error?: string }>;
   restartApp: () => Promise<{ success: boolean; error?: string }>;
   checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
+  getPendingUpdate: () => Promise<{
+    success: boolean;
+    updateInfo?: { version: string; releaseDate?: string; releaseNotes?: string } | null;
+    downloaded?: boolean;
+    error?: string | null;
+  }>;
   downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
   quitAndInstall: () => Promise<{ success: boolean; error?: string }>;
   onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string; releaseNotes?: string }) => void) => () => void;
