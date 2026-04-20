@@ -4195,6 +4195,10 @@ ipcMain.handle('mobile-server:get-config', () => {
         requireAuth: true,
         enableHTTPS: false,
         enableDiscovery: true,
+        enablePublicTunnel: true,
+        ngrokAuthtoken: '',
+        ngrokDomain: '',
+        ngrokRegion: '',
       } as MobileServerConfig,
     };
   } catch (error) {
