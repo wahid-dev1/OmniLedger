@@ -1,9 +1,11 @@
 # Unified release pipeline:
-# - push to main → ensure git tag v{package.json}, build Win+Mac, publish GitHub Release (same run).
+# - push to main → ensure a unique git tag, build Win+Mac, publish GitHub Release (same run).
 # - push tag v* → build + publish (e.g. manual tag).
 # - workflow_dispatch → optional release_tag, or run from main / tag only.
 #
 # Tag creation + installers happen in one workflow so GITHUB_TOKEN can push tags and still run build jobs.
+# If package.json version tag already exists on another commit, we auto-suffix a unique tag
+# (vX.Y.Z-r<run_number>) so every merged PR to main still gets a release.
 
 name: Build and Release
 
@@ -79,10 +81,32 @@ jobs:
               local ex
               ex=$(git rev-parse "${TAG}^0")
               if [ "$ex" != "$SHA" ]; then
-                echo "::error::Tag ${TAG} exists on another commit. Bump version in package.json."
-                exit 1
+                # Keep release flow automatic for every main merge.
+                # When base tag exists on another commit, mint a unique tag for this run.
+                TAG="${TAG}-r${GITHUB_RUN_NUMBER}"
+                echo "::notice::Base tag exists on another commit. Using unique tag ${TAG}."
+                if git rev-parse "$TAG" >/dev/null 2>&1; then
+                  local ex2
+                  ex2=$(git rev-parse "${TAG}^0")
+                  if [ "$ex2" != "$SHA" ]; then
+                    echo "::error::Generated tag ${TAG} already points to another commit. Re-run workflow."
+                    exit 1
+                  fi
+                  echo "::notice::Generated tag ${TAG} already at ${SHA}."
+                  echo "$TAG"
+                  return 0
+                fi
+                git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                git config user.name "github-actions[bot]"
+                git tag -a "$TAG" -m "Release ${TAG}"
+                PAT="${RELEASE_PUSH_TOKEN:-${GITHUB_TOKEN}}"
+                git remote set-url origin "https://x-access-token:${PAT}@github.com/${GITHUB_REPOSITORY}.git"
+                git push origin "refs/tags/${TAG}"
+                echo "$TAG"
+                return 0
               fi
               echo "::notice::Tag ${TAG} already at ${SHA}."
+              echo "$TAG"
             else
               git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
               git config user.name "github-actions[bot]"
@@ -90,6 +114,7 @@ jobs:
               PAT="${RELEASE_PUSH_TOKEN:-${GITHUB_TOKEN}}"
               git remote set-url origin "https://x-access-token:${PAT}@github.com/${GITHUB_REPOSITORY}.git"
               git push origin "refs/tags/${TAG}"
+              echo "$TAG"
             fi
           }
 
@@ -114,10 +139,9 @@ jobs:
             exit 0
           fi
 
-          # main: tag package.json version at HEAD (creates tag if missing), then build this SHA
+          # main: tag package.json version at HEAD (or a unique fallback tag), then build this SHA
           if [[ "${REF}" == refs/heads/main ]]; then
-            tag_name="${PKG_TAG}"
-            ensure_tag_points_here "${PKG_TAG}"
+            tag_name="$(ensure_tag_points_here "${PKG_TAG}")"
             checkout_ref="${SHA}"
             echo "checkout_ref=${checkout_ref}" >> "${GITHUB_OUTPUT}"
             echo "tag_name=${tag_name}" >> "${GITHUB_OUTPUT}"
