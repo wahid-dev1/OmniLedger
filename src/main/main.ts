@@ -34,6 +34,11 @@ import { Transaction } from "../database/models/Transaction";
 // ReportConfig and ImportExportTemplate models imported but not directly used in main.ts
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+const isDevUpdaterEnabled = process.env.ENABLE_DEV_UPDATER === "1";
+
+function canUseAutoUpdater() {
+  return app.isPackaged || isDevUpdaterEnabled;
+}
 
 // Store main window reference for auto-updater to send events
 let mainWindow: BrowserWindow | null = null;
@@ -191,7 +196,21 @@ function serializeReleaseNotes(notes: unknown): string | undefined {
 
 // Initialize auto-updater (only in production packaged app)
 function setupAutoUpdater() {
-  if (!app.isPackaged) return;
+  if (!canUseAutoUpdater()) return;
+
+  if (!app.isPackaged && isDevUpdaterEnabled) {
+    autoUpdater.forceDevUpdateConfig = true;
+    console.log("Auto-updater dev testing enabled (ENABLE_DEV_UPDATER=1)");
+
+    const devConfigPath = path.join(app.getAppPath(), "dev-app-update.yml");
+    if (!fs.existsSync(devConfigPath)) {
+      pendingUpdateError =
+        "Dev updater config not found (dev-app-update.yml). Cannot check for updates in development.";
+      console.error(pendingUpdateError);
+      mainWindow?.webContents.send("update-error", pendingUpdateError);
+      return;
+    }
+  }
 
   autoUpdater.autoDownload = false; // Let user choose to download
   autoUpdater.autoInstallOnAppQuit = true;
@@ -200,6 +219,8 @@ function setupAutoUpdater() {
     autoUpdater.checkForUpdates();
   } catch (err) {
     console.warn("Auto-updater check failed:", err);
+    pendingUpdateError = err instanceof Error ? err.message : String(err);
+    mainWindow?.webContents.send("update-error", pendingUpdateError);
   }
 
   // Check periodically (every 4 hours)
@@ -208,6 +229,8 @@ function setupAutoUpdater() {
       autoUpdater.checkForUpdates();
     } catch (err) {
       console.warn("Periodic update check failed:", err);
+      pendingUpdateError = err instanceof Error ? err.message : String(err);
+      mainWindow?.webContents.send("update-error", pendingUpdateError);
     }
   }, 4 * 60 * 60 * 1000);
 
@@ -4009,7 +4032,13 @@ ipcMain.handle("get-pending-update", () => {
 
 // Auto-updater: check for updates
 ipcMain.handle("check-for-updates", async () => {
-  if (!app.isPackaged) return { success: false, error: "Not available in development" };
+  if (!canUseAutoUpdater()) {
+    return {
+      success: false,
+      error:
+        "Not available in development. Set ENABLE_DEV_UPDATER=1 to test updates in dev mode.",
+    };
+  }
   try {
     const result = await autoUpdater.checkForUpdates();
     return { success: true, updateInfo: result?.updateInfo };
@@ -4024,7 +4053,13 @@ ipcMain.handle("check-for-updates", async () => {
 
 // Auto-updater: download update (called when user confirms)
 ipcMain.handle("download-update", async () => {
-  if (!app.isPackaged) return { success: false, error: "Not available in development" };
+  if (!canUseAutoUpdater()) {
+    return {
+      success: false,
+      error:
+        "Not available in development. Set ENABLE_DEV_UPDATER=1 to test updates in dev mode.",
+    };
+  }
   try {
     await autoUpdater.downloadUpdate();
     return { success: true };
@@ -4039,7 +4074,13 @@ ipcMain.handle("download-update", async () => {
 
 // Auto-updater: quit and install (restart with new version)
 ipcMain.handle("quit-and-install", () => {
-  if (!app.isPackaged) return { success: false, error: "Not available in development" };
+  if (!canUseAutoUpdater()) {
+    return {
+      success: false,
+      error:
+        "Not available in development. Set ENABLE_DEV_UPDATER=1 to test updates in dev mode.",
+    };
+  }
   try {
     autoUpdater.quitAndInstall(false, true);
     return { success: true };

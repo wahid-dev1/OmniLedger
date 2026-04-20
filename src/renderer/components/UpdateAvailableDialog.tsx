@@ -139,14 +139,14 @@ export function UpdateAvailableDialog({
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 sm:h-10 sm:w-10">
                     <RefreshCw className="h-5 w-5 text-primary" />
                   </span>
-                  <span className="min-w-0 break-words">New version available</span>
+                  <span className="min-w-0 break-words">New update available</span>
                 </>
               )}
             </DialogTitle>
             <DialogDescription className="text-left text-sm leading-relaxed text-muted-foreground">
               {isDownloaded
                 ? "The update has been downloaded. Restart OmniLedger to finish installing."
-                : `OmniLedger ${updateInfo.version} is ready. Download the update in the background, then restart when prompted.`}
+                : `New update available: OmniLedger ${updateInfo.version}. Download it in the background, then restart when prompted.`}
             </DialogDescription>
           </DialogHeader>
         </div>

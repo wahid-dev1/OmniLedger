@@ -216,6 +216,9 @@ export function SplashScreen() {
         <header className="mb-6">
           <h1 className="text-base font-medium tracking-tight text-muted-foreground">
             OmniLedger{" "}
+            <span className="text-muted-foreground">
+              v{__APP_VERSION__}
+            </span>{" "}
             <span className="text-muted-foreground/80">
               | Inventory & Accounting System
             </span>
