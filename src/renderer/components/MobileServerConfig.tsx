@@ -11,15 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Server, 
-  Wifi, 
-  WifiOff, 
-  Play, 
-  Square, 
-  Copy, 
-  CheckCircle2, 
-  XCircle,
+import {
+  Server,
+  Wifi,
+  WifiOff,
+  Play,
+  Square,
+  Copy,
+  CheckCircle2,
   AlertCircle,
   Loader2,
   Globe,
@@ -28,19 +27,31 @@ import {
   Unlock,
   ArrowLeft,
   TestTube2,
+  Eye,
+  EyeOff,
+  KeyRound,
+  ExternalLink,
 } from "lucide-react";
 import type { MobileServerConfig } from "../../shared/types";
 
-const TUNNEL_VERIFY_INTERVAL_MS = 15_000;
-/** Cloudflare quick tunnels often need several minutes before /health succeeds from the browser. */
-const TUNNEL_VERIFY_MAX_MS = 10 * 60 * 1000;
+const TUNNEL_VERIFY_INTERVAL_MS = 5_000;
+/** ngrok tunnels typically come up in 1–3 seconds; 60s is ample to confirm /health. */
+const TUNNEL_VERIFY_MAX_MS = 60 * 1000;
 
 async function fetchTunnelHealthOk(publicBaseUrl: string): Promise<boolean> {
   const base = publicBaseUrl.replace(/\/+$/, "");
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 25_000);
   try {
-    const res = await fetch(`${base}/health`, { method: "GET", signal: controller.signal });
+    const res = await fetch(`${base}/health`, {
+      method: "GET",
+      signal: controller.signal,
+      headers: {
+        // Bypasses ngrok's free-tier browser abuse interstitial so fetch() actually
+        // reaches our API instead of getting HTML back. Value is arbitrary.
+        "ngrok-skip-browser-warning": "omniledger",
+      },
+    });
     if (!res.ok) return false;
     const text = await res.text();
     let parsed: { success?: boolean; data?: { status?: string } };
@@ -78,6 +89,10 @@ export function MobileServerConfig() {
     requireAuth: true,
     enableHTTPS: false,
     enableDiscovery: true,
+    enablePublicTunnel: true,
+    ngrokAuthtoken: "",
+    ngrokDomain: "",
+    ngrokRegion: "",
   });
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -88,6 +103,7 @@ export function MobileServerConfig() {
   const [tunnelTestOutcome, setTunnelTestOutcome] = useState<{ ok: boolean; detail: string } | null>(null);
   const [tunnelEndpointReady, setTunnelEndpointReady] = useState(false);
   const [tunnelVerifyTimedOut, setTunnelVerifyTimedOut] = useState(false);
+  const [showAuthtoken, setShowAuthtoken] = useState(false);
   const latestStatusRef = useRef(status);
   latestStatusRef.current = status;
 
@@ -253,14 +269,14 @@ export function MobileServerConfig() {
       setTunnelTestOutcome({
         ok: false,
         detail:
-          "Could not reach /health through the public URL yet. That is common for the first 5–10 minutes; automatic checks keep running in the background.",
+          "Could not reach /health through the public URL. Confirm the API server is running, the ngrok tunnel is connected, and your firewall allows outbound HTTPS.",
       });
     } finally {
       setTunnelTestLoading(false);
     }
   };
 
-  /** Public trycloudflare URL when ready; otherwise local URL only (no LAN IPs). */
+  /** Public ngrok URL when ready; otherwise local URL only (no LAN IPs). */
   const getServerUrls = () => {
     if (tunnelUrl) {
       return [tunnelUrl];
@@ -380,10 +396,12 @@ export function MobileServerConfig() {
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">
                   {tunnelUrl
-                    ? "Public mobile endpoint (Cloudflare)"
+                    ? "Public mobile endpoint (ngrok)"
                     : tunnelPublicUrlFailed
                       ? "Local endpoint (tunnel unavailable)"
-                      : "Public mobile endpoint (Cloudflare)"}
+                      : config.enablePublicTunnel === false
+                        ? "Local endpoint (public tunnel disabled)"
+                        : "Public mobile endpoint (ngrok)"}
                 </Label>
 
                 {tunnelUrl ? (
@@ -414,16 +432,18 @@ export function MobileServerConfig() {
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                          This is a temporary Cloudflare quick tunnel, not a fixed hostname.
+                          {config.ngrokDomain
+                            ? "This is your reserved ngrok domain."
+                            : "This is a temporary ngrok URL — it changes every time the tunnel restarts. Set a reserved ngrok domain for a stable URL."}
                         </p>
                       </>
                     ) : tunnelVerifyTimedOut ? (
                       <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
-                        <p className="font-medium">Could not confirm /health within 10 minutes</p>
+                        <p className="font-medium">Could not confirm /health on the public URL</p>
                         <p className="mt-1 text-xs leading-relaxed opacity-90">
-                          trycloudflare links often take <strong>5–10 minutes</strong> before they answer from a
-                          browser. Keep this screen open, or use <strong>Test tunnel</strong> periodically. If it
-                          eventually works, the green verified message will appear on the next automatic check.
+                          The ngrok tunnel is up but <code className="text-xs">/health</code> did not respond. Make
+                          sure the API server did not crash, and that nothing is blocking outbound HTTPS. Use{" "}
+                          <strong>Test tunnel</strong> to retry.
                         </p>
                       </div>
                     ) : (
@@ -438,13 +458,21 @@ export function MobileServerConfig() {
                           <p className="text-sm font-medium text-foreground">Checking public connectivity…</p>
                           <p className="text-xs text-muted-foreground leading-relaxed">
                             Polling <code className="text-xs">GET /health</code> on this URL every{" "}
-                            {TUNNEL_VERIFY_INTERVAL_MS / 1000}s for up to {TUNNEL_VERIFY_MAX_MS / 60000} minutes.
-                            It is normal for this to take <strong>5–10 minutes</strong> before the edge routes traffic
-                            to your machine. You can copy the URL below in the meantime.
+                            {TUNNEL_VERIFY_INTERVAL_MS / 1000}s for up to {TUNNEL_VERIFY_MAX_MS / 1000}s. ngrok
+                            tunnels usually come up within a few seconds.
                           </p>
                         </div>
                       </div>
                     )}
+                    <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+                      <p className="font-medium">ngrok free-tier note</p>
+                      <p className="mt-1 leading-relaxed">
+                        If you open this URL directly in a browser you may see a one-time ngrok abuse warning. Mobile
+                        clients and this app bypass it automatically using the
+                        <code className="mx-1">ngrok-skip-browser-warning</code> header. Upgrade your ngrok plan to
+                        remove the warning for browser visitors.
+                      </p>
+                    </div>
                   </>
                 ) : tunnelPublicUrlFailed ? (
                   <>
@@ -486,8 +514,11 @@ export function MobileServerConfig() {
                           <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/60 motion-reduce:animate-none" />
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          Starting Cloudflare quick tunnel (trycloudflare). The public hostname can appear before the
-                          edge is ready; we then verify /health automatically for up to 10 minutes (often 5–10 minutes).
+                          {config.enablePublicTunnel === false
+                            ? "Public tunnel is disabled in settings."
+                            : config.ngrokAuthtoken?.trim()
+                              ? "Starting ngrok tunnel. This usually takes a couple of seconds."
+                              : "Add an ngrok authtoken below to enable a public URL. The API is available on localhost in the meantime."}
                         </span>
                       </div>
                     </div>
@@ -680,6 +711,128 @@ export function MobileServerConfig() {
               disabled={true}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Public Access (ngrok) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Public Access (ngrok)
+          </CardTitle>
+          <CardDescription>
+            Expose the mobile API to the internet through an ngrok tunnel so phones off your LAN can reach it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="enablePublicTunnel">Enable public tunnel</Label>
+              <p className="text-sm text-muted-foreground">
+                When on, the server starts an ngrok tunnel and uses its HTTPS URL as the public mobile endpoint.
+              </p>
+            </div>
+            <Switch
+              id="enablePublicTunnel"
+              checked={config.enablePublicTunnel !== false}
+              onCheckedChange={(checked) => setConfig({ ...config, enablePublicTunnel: checked })}
+              disabled={isRunning}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ngrokAuthtoken" className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4" />
+              ngrok authtoken
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="ngrokAuthtoken"
+                type={showAuthtoken ? "text" : "password"}
+                autoComplete="off"
+                spellCheck={false}
+                value={config.ngrokAuthtoken || ""}
+                onChange={(e) => setConfig({ ...config, ngrokAuthtoken: e.target.value })}
+                disabled={isRunning}
+                placeholder="2abcDEF...your ngrok authtoken"
+                className="font-mono"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAuthtoken((v) => !v)}
+                disabled={isRunning}
+                className="gap-2"
+              >
+                {showAuthtoken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showAuthtoken ? "Hide" : "Show"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Required to start a public tunnel. Get a free authtoken from{" "}
+              <a
+                href="https://dashboard.ngrok.com/get-started/your-authtoken"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+              >
+                dashboard.ngrok.com <ExternalLink className="h-3 w-3" />
+              </a>
+              . Stored locally in your server config.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ngrokDomain">Reserved domain (optional)</Label>
+            <Input
+              id="ngrokDomain"
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              value={config.ngrokDomain || ""}
+              onChange={(e) => setConfig({ ...config, ngrokDomain: e.target.value })}
+              disabled={isRunning}
+              placeholder="my-shop.ngrok.app"
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank to get a random ngrok URL each run. Paid ngrok plans can reserve a stable subdomain here.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ngrokRegion">Region (optional)</Label>
+            <select
+              id="ngrokRegion"
+              value={config.ngrokRegion || ""}
+              onChange={(e) => setConfig({ ...config, ngrokRegion: e.target.value })}
+              disabled={isRunning}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Auto (closest)</option>
+              <option value="us">United States (us)</option>
+              <option value="eu">Europe (eu)</option>
+              <option value="ap">Asia/Pacific (ap)</option>
+              <option value="au">Australia (au)</option>
+              <option value="sa">South America (sa)</option>
+              <option value="jp">Japan (jp)</option>
+              <option value="in">India (in)</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Pick the region closest to where the mobile app is used for the lowest latency.
+            </p>
+          </div>
+
+          {config.enablePublicTunnel !== false && !config.ngrokAuthtoken?.trim() && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Add an ngrok authtoken above to enable the public URL. Without it, the server will still run but will
+                only be reachable on this computer.
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
